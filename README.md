@@ -14,13 +14,13 @@ wechat-to-markdown/
 │   │   │   │   └── route.js
 │   │   │   └── download/
 │   │   │       └── route.js
-│   │   ├── layout.js
-│   │   └── page.js
+│   │   ├── layout.tsx
+│   │   └── page.tsx
 │   ├── components/
 │   │   ├── ui/ (shadcn components)
-│   │   ├── converter-form.jsx
-│   │   ├── markdown-preview.jsx
-│   │   └── file-download.jsx
+│   │   ├── converter-form.tsx
+│   │   ├── markdown-preview.tsx
+│   │   └── file-download.tsx
 │   ├── lib/
 │   │   ├── wechat-parser.js
 │   │   └── markdown-converter.js

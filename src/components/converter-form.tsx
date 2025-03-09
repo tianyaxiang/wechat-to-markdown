@@ -10,13 +10,27 @@ import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 import axios from 'axios';
 
-export default function ConverterForm({ onConversionComplete, isLoading, setIsLoading }) {
-  const [url, setUrl] = useState('');
-  const [progress, setProgress] = useState(0);
-  const [error, setError] = useState('');
+interface ArticleData {
+  markdown: string;
+  title: string;
+  images: Array<{ url: string; filename: string }>;
+  originalUrl: string;
+  id: string;
+}
+
+interface ConverterFormProps {
+  onConversionComplete: (data: ArticleData) => void;
+  isLoading: boolean;
+  setIsLoading: (loading: boolean) => void;
+}
+
+export default function ConverterForm({ onConversionComplete, isLoading, setIsLoading }: ConverterFormProps) {
+  const [url, setUrl] = useState<string>('');
+  const [progress, setProgress] = useState<number>(0);
+  const [error, setError] = useState<string>('');
   const { toast } = useToast();
 
-  const isValidUrl = (string) => {
+  const isValidUrl = (string: string): boolean => {
     try {
       const url = new URL(string);
       return url.hostname.includes('weixin.qq.com') || url.hostname.includes('mp.weixin.qq.com');
@@ -25,7 +39,7 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!url) {
@@ -71,7 +85,7 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
         originalUrl: url,
         id: response.data.id
       });
-    } catch (error) {
+    } catch (error: any) {
       setError(error.response?.data?.message || 'Failed to convert article. Please try again.');
       toast({
         variant: "destructive",
@@ -125,4 +139,4 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
       </Button>
     </form>
   );
-}
+} 

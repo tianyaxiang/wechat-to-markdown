@@ -7,8 +7,27 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { Copy } from 'lucide-react';
+import { ComponentPropsWithoutRef } from 'react';
 
-export default function MarkdownPreview({ markdown }) {
+interface MarkdownPreviewProps {
+  markdown: string;
+}
+
+// Define types for ReactMarkdown components
+type ReactMarkdownProps = ComponentPropsWithoutRef<typeof ReactMarkdown>;
+type ComponentType = NonNullable<ReactMarkdownProps['components']>;
+
+interface CodeProps extends ComponentPropsWithoutRef<'code'> {
+  inline?: boolean;
+  node?: any;
+}
+
+interface MarkdownComponentProps {
+  node?: any;
+  [key: string]: any;
+}
+
+export default function MarkdownPreview({ markdown }: MarkdownPreviewProps) {
   const { toast } = useToast();
 
   const copyToClipboard = () => {
@@ -45,18 +64,18 @@ export default function MarkdownPreview({ markdown }) {
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeRaw]}
               components={{
-                img: ({node, ...props}) => (
+                img: ({node, ...props}: MarkdownComponentProps) => (
                   <img className="max-w-full h-auto my-4 rounded" {...props} alt={props.alt || 'Image'} />
                 ),
-                h1: ({node, ...props}) => <h1 className="text-2xl font-bold my-4" {...props} />,
-                h2: ({node, ...props}) => <h2 className="text-xl font-bold my-3" {...props} />,
-                h3: ({node, ...props}) => <h3 className="text-lg font-bold my-3" {...props} />,
-                p: ({node, ...props}) => <p className="my-2" {...props} />,
-                a: ({node, ...props}) => <a className="text-blue-600 hover:underline" {...props} />,
-                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-200 pl-4 italic my-4" {...props} />,
-                ul: ({node, ...props}) => <ul className="list-disc ml-6 my-3" {...props} />,
-                ol: ({node, ...props}) => <ol className="list-decimal ml-6 my-3" {...props} />,
-                code: ({node, inline, ...props}) =>
+                h1: ({node, ...props}: MarkdownComponentProps) => <h1 className="text-2xl font-bold my-4" {...props} />,
+                h2: ({node, ...props}: MarkdownComponentProps) => <h2 className="text-xl font-bold my-3" {...props} />,
+                h3: ({node, ...props}: MarkdownComponentProps) => <h3 className="text-lg font-bold my-3" {...props} />,
+                p: ({node, ...props}: MarkdownComponentProps) => <p className="my-2" {...props} />,
+                a: ({node, ...props}: MarkdownComponentProps) => <a className="text-blue-600 hover:underline" {...props} />,
+                blockquote: ({node, ...props}: MarkdownComponentProps) => <blockquote className="border-l-4 border-gray-200 pl-4 italic my-4" {...props} />,
+                ul: ({node, ...props}: MarkdownComponentProps) => <ul className="list-disc ml-6 my-3" {...props} />,
+                ol: ({node, ...props}: MarkdownComponentProps) => <ol className="list-decimal ml-6 my-3" {...props} />,
+                code: ({node, inline, ...props}: CodeProps) =>
                   inline ?
                     <code className="bg-gray-100 px-1 rounded text-sm" {...props} /> :
                     <pre className="bg-gray-100 p-3 rounded overflow-auto my-4"><code {...props} /></pre>
@@ -75,4 +94,4 @@ export default function MarkdownPreview({ markdown }) {
       </Tabs>
     </div>
   );
-}
+} 

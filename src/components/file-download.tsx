@@ -3,13 +3,30 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Download, FileDown, ImageIcon, FileZip, Loader2 } from 'lucide-react';
+import { Download, FileDown, Image, FileArchive, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
 import JSZip from 'jszip';
 
-export default function FileDownload({ articleData }) {
-  const [isDownloading, setIsDownloading] = useState(false);
+interface ArticleImage {
+  url: string;
+  filename: string;
+}
+
+interface ArticleData {
+  markdown: string;
+  title: string;
+  images: ArticleImage[];
+  originalUrl: string;
+  id: string;
+}
+
+interface FileDownloadProps {
+  articleData: ArticleData | null;
+}
+
+export default function FileDownload({ articleData }: FileDownloadProps) {
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const { toast } = useToast();
 
   if (!articleData) {
@@ -55,7 +72,7 @@ export default function FileDownload({ articleData }) {
             responseType: 'arraybuffer'
           });
 
-          imgFolder.file(image.filename, response.data);
+          imgFolder?.file(image.filename, response.data);
           return true;
         } catch (error) {
           console.error(`Failed to download image: ${image.url}`, error);
@@ -110,7 +127,7 @@ export default function FileDownload({ articleData }) {
 
         <Card className="p-4 flex flex-col items-center justify-between space-y-4">
           <div className="text-center">
-            <FileZip className="h-12 w-12 mx-auto text-gray-500 mb-2" />
+            <FileArchive className="h-12 w-12 mx-auto text-gray-500 mb-2" />
             <h3 className="font-medium text-lg">Complete Package</h3>
             <p className="text-sm text-gray-500">Markdown + {images.length} images</p>
           </div>
@@ -138,7 +155,7 @@ export default function FileDownload({ articleData }) {
             {images.map((image, index) => (
               <div key={index} className="border rounded-md p-2 flex flex-col items-center">
                 <div className="bg-gray-100 w-full h-24 flex items-center justify-center rounded-md mb-2">
-                  <ImageIcon className="h-8 w-8 text-gray-400" />
+                  <Image className="h-8 w-8 text-gray-400" />
                 </div>
                 <p className="text-xs text-gray-500 truncate w-full text-center" title={image.filename}>
                   {image.filename}
@@ -150,4 +167,4 @@ export default function FileDownload({ articleData }) {
       )}
     </div>
   );
-}
+} 
