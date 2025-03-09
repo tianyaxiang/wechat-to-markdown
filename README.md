@@ -2,6 +2,36 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+// Project structure overview
+/*
+wechat-to-markdown/
+├── public/
+│   └── placeholder.png
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── convert/
+│   │   │   │   └── route.js
+│   │   │   └── download/
+│   │   │       └── route.js
+│   │   ├── layout.js
+│   │   └── page.js
+│   ├── components/
+│   │   ├── ui/ (shadcn components)
+│   │   ├── converter-form.jsx
+│   │   ├── markdown-preview.jsx
+│   │   └── file-download.jsx
+│   ├── lib/
+│   │   ├── wechat-parser.js
+│   │   └── markdown-converter.js
+│   └── styles/
+│       └── globals.css
+├── .env
+├── next.config.js
+├── package.json
+└── tailwind.config.js
+*/
+
 First, run the development server:
 
 ```bash
