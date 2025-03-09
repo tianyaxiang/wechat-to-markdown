@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="128" fill="#1E293B"/>
+  <g transform="translate(96, 96) scale(0.625)">
+    <!-- WeChat-like icon in green -->
+    <path d="M192 224c0 17.6 14.4 32 32 32s32-14.4 32-32-14.4-32-32-32-32 14.4-32 32z" fill="#22C55E"/>
+    <path d="M98.08 78.72C107.2 60.8 132.48 48 160 48c44.8 0 80 21.44 80 48 0 10.56-5.76 20-15.2 27.2" stroke="#22C55E" stroke-width="32" stroke-linecap="round"/>
+    <path d="M98.08 78.72C60.8 93.6 48 116.32 48 136c0 43.2 70.4 56 112 56 16.48 0 32.64-1.6 47.52-4.16" stroke="#22C55E" stroke-width="32" stroke-linecap="round"/>
+    <path d="M328 232c0-44.16-71.68-80-160-80" stroke="#22C55E" stroke-width="32" stroke-linecap="round"/>
+    <path d="M88.16 296a64 64 0 0 0 55.52-96" stroke="#22C55E" stroke-width="32" stroke-linecap="round"/>
+    <path d="M328 296a64 64 0 0 0-120-32" stroke="#22C55E" stroke-width="32" stroke-linecap="round"/>
+    
+    <!-- Markdown M in blue -->
+    <path d="M384 128H256v256h128V128z" fill="#3B82F6" fill-opacity="0.2"/>
+    <path d="M256 128h-32v128l-32-32-32 32V128H128v256h128V128z" fill="#3B82F6"/>
+  </g>
+</svg> 

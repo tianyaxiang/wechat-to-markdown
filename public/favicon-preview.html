@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WeChat to Markdown Favicon Preview</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+    .preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 2rem 0;
+    }
+    .preview img {
+      margin-bottom: 1rem;
+    }
+    .sizes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+    }
+    .size-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .instructions {
+      background-color: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      margin-top: 2rem;
+    }
+    h1 {
+      text-align: center;
+    }
+    ol {
+      margin-left: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>WeChat to Markdown Favicon Preview</h1>
+  
+  <div class="preview">
+    <img src="wechat-markdown-icon.svg" alt="WeChat to Markdown Icon" width="256" height="256">
+    <p>Original SVG (256x256)</p>
+  </div>
+  
+  <div class="sizes">
+    <div class="size-preview">
+      <img src="wechat-markdown-icon.svg" alt="16x16" width="16" height="16">
+      <p>16x16</p>
+    </div>
+    <div class="size-preview">
+      <img src="wechat-markdown-icon.svg" alt="32x32" width="32" height="32">
+      <p>32x32</p>
+    </div>
+    <div class="size-preview">
+      <img src="wechat-markdown-icon.svg" alt="48x48" width="48" height="48">
+      <p>48x48</p>
+    </div>
+    <div class="size-preview">
+      <img src="wechat-markdown-icon.svg" alt="64x64" width="64" height="64">
+      <p>64x64</p>
+    </div>
+    <div class="size-preview">
+      <img src="wechat-markdown-icon.svg" alt="128x128" width="128" height="128">
+      <p>128x128</p>
+    </div>
+  </div>
+  
+  <div class="instructions">
+    <h2>How to save as favicon.ico:</h2>
+    <ol>
+      <li>Use an online converter like <a href="https://convertio.co/svg-ico/" target="_blank">Convertio</a> or <a href="https://favicon.io/favicon-converter/" target="_blank">favicon.io</a></li>
+      <li>Upload the SVG file (wechat-markdown-icon.svg)</li>
+      <li>Download the converted .ico file</li>
+      <li>Rename it to favicon.ico</li>
+      <li>Replace the existing favicon.ico in the public folder</li>
+    </ol>
+    <p>Alternatively, you can use a tool like ImageMagick if installed:</p>
+    <pre>convert -background none -density 256x256 wechat-markdown-icon.svg -define icon:auto-resize=16,32,48,64 favicon.ico</pre>
+  </div>
+</body>
+</html> 
