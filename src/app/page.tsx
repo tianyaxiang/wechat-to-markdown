@@ -7,6 +7,7 @@ import MarkdownPreview from '@/components/markdown-preview';
 import FileDownload from '@/components/file-download';
 import { Github, Settings } from 'lucide-react';
 import ConfigModal from '@/components/config-modal';
+import Link from 'next/link';
 
 // Define the article data type
 interface ArticleData {
@@ -216,6 +217,21 @@ export default function Home() {
         config={configData}
         onSave={saveConfig}
       />
+
+      {/* Add a section about the direct sync feature */}
+      <section className="mt-12 border-t pt-8 border-slate-200 dark:border-slate-800">
+        <h2 className="text-2xl font-bold mb-4">New! Direct Sync to GitHub</h2>
+        <p className="mb-4">
+          You can now directly sync WeChat articles to your GitHub repository with a single click.
+          No need to download and upload files manually.
+        </p>
+        <div className="flex">
+          <Link href="/direct-sync" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center">
+            <Github className="mr-2 h-4 w-4" />
+            Try Direct Sync
+          </Link>
+        </div>
+      </section>
     </main>
   );
 }
