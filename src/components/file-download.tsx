@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Card, CardContent } from '@/components/ui';
-import { Download, Github, Check, AlertCircle } from 'lucide-react';
+import { Button, Card, CardContent, Alert, AlertTitle, AlertDescription } from '@/components/ui';
+import { Download, Github, Check, AlertCircle, ExternalLink, Info } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -17,6 +17,9 @@ interface ArticleData {
 interface GithubConfig {
   repo: string;
   token: string;
+  branch?: string;
+  markdownDir?: string;
+  imagesDir?: string;
 }
 
 interface FileDownloadProps {
@@ -27,8 +30,11 @@ interface FileDownloadProps {
 export default function FileDownload({ articleData, githubConfig }: FileDownloadProps) {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [syncError, setSyncError] = useState<string>('');
+  const [syncErrorDetails, setSyncErrorDetails] = useState<string>('');
+  const [syncErrorSolution, setSyncErrorSolution] = useState<string>('');
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [showRepoHelp, setShowRepoHelp] = useState<boolean>(false);
 
   if (!articleData) {
     return <div>No article data available</div>;
@@ -89,21 +95,97 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
     }
   };
 
+  const validateGithubConfig = () => {
+    if (!githubConfig) {
+      return "GitHub configuration is missing";
+    }
+    
+    if (!githubConfig.repo) {
+      return "GitHub repository is not specified";
+    }
+    
+    if (!githubConfig.repo.includes('/')) {
+      return "Invalid repository format. Should be 'username/repository'";
+    }
+    
+    if (!githubConfig.token) {
+      return "GitHub token is not specified";
+    }
+    
+    return null;
+  };
+
+  const getHumanReadableError = (error: string, status?: number) => {
+    if (error.includes('Not Found') && status === 404) {
+      return {
+        message: "Repository not found",
+        details: `The repository "${githubConfig?.repo}" could not be found.`,
+        solution: `Please check that:
+1. The repository exists on GitHub
+2. The repository name is correctly formatted as 'username/repository'
+3. Your GitHub token has access to this repository
+4. If it's a private repository, make sure your token has the 'repo' scope
+5. You may need to create the repository first if it doesn't exist`
+      };
+    }
+    
+    if (error.includes('Bad credentials') || error.includes('Unauthorized')) {
+      return {
+        message: "Invalid GitHub token",
+        details: `Your GitHub token was rejected.`,
+        solution: `Please check that:
+1. The token is valid and not expired
+2. The token has the 'repo' scope
+3. You can create a new token at GitHub Settings`
+      };
+    }
+    
+    if (error.includes('rate limit')) {
+      return {
+        message: "GitHub API rate limit exceeded",
+        details: "You've hit GitHub's API rate limit.",
+        solution: "Please try again later or use a token with higher rate limits."
+      };
+    }
+    
+    return {
+      message: error,
+      details: "",
+      solution: "Check your GitHub configuration and try again."
+    };
+  };
+
   const handleGithubSync = async () => {
     if (!githubConfig) return;
     
     setSyncStatus('syncing');
     setSyncError('');
+    setSyncErrorDetails('');
+    setSyncErrorSolution('');
+    setShowRepoHelp(false);
+    
+    // Validate GitHub configuration
+    const validationError = validateGithubConfig();
+    if (validationError) {
+      setSyncStatus('error');
+      setSyncError(validationError);
+      return;
+    }
     
     try {
       const sanitizedTitle = articleData.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
       const markdownFilename = `${sanitizedTitle}.md`;
       const date = new Date().toISOString().split('T')[0];
-      const folderPath = `articles/${date}-${sanitizedTitle}`;
       
-      // Create a new branch
-      const branchName = `article-${date}-${Math.floor(Math.random() * 1000)}`;
+      // Use configured directories or defaults
+      const markdownDir = githubConfig.markdownDir || 'articles';
+      const imagesDir = githubConfig.imagesDir || 'images';
       
+      // Create path for markdown file and images
+      const folderPath = `${markdownDir}/${date}-${sanitizedTitle}`;
+      const imagesPath = `${folderPath}/${imagesDir}`;
+      
+      console.log('Fetching repository info...');
       // Get the default branch
       const repoInfoResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}`, {
         headers: {
@@ -113,11 +195,29 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       });
       
       if (!repoInfoResponse.ok) {
-        throw new Error(`Failed to get repository info: ${repoInfoResponse.statusText}`);
+        const errorData = await repoInfoResponse.json().catch(() => ({}));
+        const errorMessage = errorData.message || repoInfoResponse.statusText || 'Unknown error';
+        const { message, details, solution } = getHumanReadableError(errorMessage, repoInfoResponse.status);
+        setSyncError(message);
+        setSyncErrorDetails(details);
+        setSyncErrorSolution(solution);
+        
+        // Show repository help if it's a 404 error
+        if (repoInfoResponse.status === 404) {
+          setShowRepoHelp(true);
+        }
+        
+        setSyncStatus('error');
+        return; // Stop execution instead of throwing
       }
       
       const repoInfo = await repoInfoResponse.json();
-      const defaultBranch = repoInfo.default_branch;
+      
+      // Use configured branch or repository default branch
+      const defaultBranch = githubConfig.branch || repoInfo.default_branch;
+      
+      console.log(`Using branch: ${defaultBranch}`);
+      console.log('Fetching reference...');
       
       // Get the reference to the default branch
       const refResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/git/refs/heads/${defaultBranch}`, {
@@ -128,11 +228,22 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       });
       
       if (!refResponse.ok) {
-        throw new Error(`Failed to get reference: ${refResponse.statusText}`);
+        const errorData = await refResponse.json().catch(() => ({}));
+        const errorMessage = errorData.message || refResponse.statusText || 'Unknown error';
+        const { message, details, solution } = getHumanReadableError(errorMessage, refResponse.status);
+        setSyncError(message);
+        setSyncErrorDetails(details);
+        setSyncErrorSolution(solution);
+        setSyncStatus('error');
+        return; // Stop execution instead of throwing
       }
       
       const refData = await refResponse.json();
       
+      // Create a new branch for this article
+      const branchName = `article-${date}-${Math.floor(Math.random() * 1000)}`;
+      
+      console.log(`Creating branch: ${branchName}...`);
       // Create a new branch
       const createBranchResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/git/refs`, {
         method: 'POST',
@@ -148,9 +259,17 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       });
       
       if (!createBranchResponse.ok) {
-        throw new Error(`Failed to create branch: ${createBranchResponse.statusText}`);
+        const errorData = await createBranchResponse.json().catch(() => ({}));
+        const errorMessage = errorData.message || createBranchResponse.statusText || 'Unknown error';
+        const { message, details, solution } = getHumanReadableError(errorMessage, createBranchResponse.status);
+        setSyncError(message);
+        setSyncErrorDetails(details);
+        setSyncErrorSolution(solution);
+        setSyncStatus('error');
+        return; // Stop execution instead of throwing
       }
       
+      console.log(`Uploading markdown file to ${folderPath}/${markdownFilename}...`);
       // Upload markdown file
       const markdownResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/contents/${folderPath}/${markdownFilename}`, {
         method: 'PUT',
@@ -167,9 +286,17 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       });
       
       if (!markdownResponse.ok) {
-        throw new Error(`Failed to upload markdown: ${markdownResponse.statusText}`);
+        const errorData = await markdownResponse.json().catch(() => ({}));
+        const errorMessage = errorData.message || markdownResponse.statusText || 'Unknown error';
+        const { message, details, solution } = getHumanReadableError(errorMessage, markdownResponse.status);
+        setSyncError(message);
+        setSyncErrorDetails(details);
+        setSyncErrorSolution(solution);
+        setSyncStatus('error');
+        return; // Stop execution instead of throwing
       }
       
+      console.log(`Uploading images to ${imagesPath}...`);
       // Upload images
       for (const image of articleData.images) {
         try {
@@ -195,7 +322,7 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
           const base64data = await base64Promise;
           
           // Upload image to GitHub
-          const imageResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/contents/${folderPath}/images/${image.filename}`, {
+          const imageResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/contents/${imagesPath}/${image.filename}`, {
             method: 'PUT',
             headers: {
               'Authorization': `token ${githubConfig.token}`,
@@ -210,14 +337,25 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
           });
           
           if (!imageResponse.ok) {
-            throw new Error(`Failed to upload image: ${imageResponse.statusText}`);
+            const errorData = await imageResponse.json().catch(() => ({}));
+            const errorMessage = errorData.message || imageResponse.statusText || 'Unknown error';
+            const { message, details, solution } = getHumanReadableError(errorMessage, imageResponse.status);
+            setSyncError(message);
+            setSyncErrorDetails(details);
+            setSyncErrorSolution(solution);
+            setSyncStatus('error');
+            return; // Stop execution instead of throwing
           }
         } catch (error) {
           console.error(`Failed to upload image: ${image.url}`, error);
-          throw error;
+          setSyncError("Failed to upload image");
+          setSyncErrorDetails(error instanceof Error ? error.message : "Unknown error");
+          setSyncStatus('error');
+          return; // Stop execution instead of throwing
         }
       }
       
+      console.log('Creating pull request...');
       // Create a pull request
       const prResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/pulls`, {
         method: 'POST',
@@ -235,7 +373,14 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       });
       
       if (!prResponse.ok) {
-        throw new Error(`Failed to create pull request: ${prResponse.statusText}`);
+        const errorData = await prResponse.json().catch(() => ({}));
+        const errorMessage = errorData.message || prResponse.statusText || 'Unknown error';
+        const { message, details, solution } = getHumanReadableError(errorMessage, prResponse.status);
+        setSyncError(message);
+        setSyncErrorDetails(details);
+        setSyncErrorSolution(solution);
+        setSyncStatus('error');
+        return; // Stop execution instead of throwing
       }
       
       setSyncStatus('success');
@@ -243,6 +388,58 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       console.error('GitHub sync error:', error);
       setSyncStatus('error');
       setSyncError(error instanceof Error ? error.message : 'Unknown error occurred');
+    }
+  };
+
+  // Helper function to create a new GitHub repository
+  const createNewRepo = async () => {
+    if (!githubConfig || !githubConfig.token) return;
+    
+    const repoName = githubConfig.repo.split('/')[1];
+    const isPrivate = true; // Default to private repository
+    
+    try {
+      setSyncStatus('syncing');
+      setSyncError('');
+      setSyncErrorDetails('');
+      setSyncErrorSolution('');
+      
+      const response = await fetch('https://api.github.com/user/repos', {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${githubConfig.token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: repoName,
+          private: isPrivate,
+          auto_init: true, // Initialize with README
+          description: 'Repository for WeChat articles converted to Markdown'
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        setSyncStatus('error');
+        setSyncError("Failed to create repository");
+        setSyncErrorDetails(errorData.message || response.statusText);
+        return;
+      }
+      
+      // Repository created successfully
+      setSyncStatus('idle'); // Reset to idle to allow sync
+      setSyncError('');
+      setSyncErrorDetails('');
+      setSyncErrorSolution('');
+      setShowRepoHelp(false);
+      
+      // Show success message
+      alert(`Repository "${repoName}" created successfully! You can now sync your article.`);
+    } catch (error) {
+      setSyncStatus('error');
+      setSyncError("Failed to create repository");
+      setSyncErrorDetails(error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -295,6 +492,11 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Push the article to your GitHub repository
                 </p>
+                {githubConfig.branch && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Branch: {githubConfig.branch} | Directory: {githubConfig.markdownDir || 'articles'}/{githubConfig.imagesDir || 'images'}
+                  </p>
+                )}
               </div>
               <Button 
                 onClick={handleGithubSync} 
@@ -329,8 +531,48 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
               </Button>
               
               {syncStatus === 'error' && (
-                <div className="text-sm text-red-500 mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded">
-                  {syncError || 'An error occurred during GitHub synchronization.'}
+                <div className="text-sm mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800/30">
+                  <div className="font-medium text-red-600 dark:text-red-400 mb-1">{syncError}</div>
+                  
+                  {syncErrorDetails && (
+                    <div className="text-red-600/90 dark:text-red-400/90 mb-2">
+                      {syncErrorDetails}
+                    </div>
+                  )}
+                  
+                  {syncErrorSolution && (
+                    <div className="text-red-600/90 dark:text-red-400/90 whitespace-pre-line text-sm">
+                      {syncErrorSolution}
+                    </div>
+                  )}
+                  
+                  {showRepoHelp && (
+                    <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-800/30">
+                      <p className="mb-2 font-medium flex items-center">
+                        <Info className="h-4 w-4 mr-1" />
+                        Would you like to create this repository?
+                      </p>
+                      <Button 
+                        onClick={createNewRepo} 
+                        size="sm" 
+                        className="w-full mt-1"
+                      >
+                        Create Repository
+                      </Button>
+                    </div>
+                  )}
+                  
+                  <div className="mt-2 flex items-center">
+                    <a 
+                      href="https://github.com/settings/tokens" 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center"
+                    >
+                      Manage GitHub Tokens
+                      <ExternalLink className="ml-1 h-3 w-3" />
+                    </a>
+                  </div>
                 </div>
               )}
             </CardContent>

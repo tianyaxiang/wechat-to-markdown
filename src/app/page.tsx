@@ -21,8 +21,21 @@ interface ArticleData {
 interface ConfigData {
   githubRepo: string;
   githubToken: string;
+  githubBranch: string;
+  markdownDir: string;
+  imagesDir: string;
   markdownTemplate: string;
 }
+
+// Default configuration
+const DEFAULT_CONFIG: ConfigData = {
+  githubRepo: '',
+  githubToken: '',
+  githubBranch: '',
+  markdownDir: 'articles',
+  imagesDir: 'images',
+  markdownTemplate: '---\ntitle: {{title}}\ndate: {{date}}\nsource: {{source}}\n---\n\n'
+};
 
 export default function Home() {
   const [markdown, setMarkdown] = useState<string>('');
@@ -34,19 +47,31 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       const savedConfig = localStorage.getItem('wechat-to-markdown-config');
       if (savedConfig) {
-        return JSON.parse(savedConfig);
+        try {
+          // Merge with default config to ensure all fields exist
+          return { ...DEFAULT_CONFIG, ...JSON.parse(savedConfig) };
+        } catch (e) {
+          console.error('Failed to parse saved config:', e);
+          return DEFAULT_CONFIG;
+        }
       }
     }
-    return {
-      githubRepo: '',
-      githubToken: '',
-      markdownTemplate: '---\ntitle: {{title}}\ndate: {{date}}\nsource: {{source}}\n---\n\n'
-    };
+    return DEFAULT_CONFIG;
   });
   
   const saveConfig = (newConfig: ConfigData) => {
-    setConfigData(newConfig);
-    localStorage.setItem('wechat-to-markdown-config', JSON.stringify(newConfig));
+    // Ensure all fields have values (not undefined)
+    const configToSave = {
+      githubRepo: newConfig.githubRepo || '',
+      githubToken: newConfig.githubToken || '',
+      githubBranch: newConfig.githubBranch || '',
+      markdownDir: newConfig.markdownDir || 'articles',
+      imagesDir: newConfig.imagesDir || 'images',
+      markdownTemplate: newConfig.markdownTemplate || DEFAULT_CONFIG.markdownTemplate
+    };
+    
+    setConfigData(configToSave);
+    localStorage.setItem('wechat-to-markdown-config', JSON.stringify(configToSave));
     setIsConfigOpen(false);
   };
   
@@ -166,7 +191,10 @@ export default function Home() {
                   articleData={articleData} 
                   githubConfig={configData.githubRepo && configData.githubToken ? {
                     repo: configData.githubRepo,
-                    token: configData.githubToken
+                    token: configData.githubToken,
+                    branch: configData.githubBranch,
+                    markdownDir: configData.markdownDir,
+                    imagesDir: configData.imagesDir
                   } : undefined}
                 />
               </CardContent>
