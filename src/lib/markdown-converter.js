@@ -84,7 +84,7 @@ export function createArticleMarkdown(articleData) {
   const contentMarkdown = convertHtmlToMarkdown(content);
   
   // Create metadata header
-  let markdown = `# ${title}\n\n`;
+  //let markdown = `# ${title}\n\n`;
   
   if (author) {
     markdown += `> 作者：${author}\n>\n`;
