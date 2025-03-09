@@ -1,13 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useToast } from '@/components/ui/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Input, Button, Label, Progress, Alert, AlertDescription, useToast } from '@/components/ui';
+import { Loader2, Link, AlertCircle, Globe } from 'lucide-react';
 import axios from 'axios';
 
 interface ArticleData {
@@ -99,38 +94,59 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="article-url">WeChat Article URL</Label>
-        <Input
-          id="article-url"
-          placeholder="https://mp.weixin.qq.com/s/..."
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          disabled={isLoading}
-        />
+    <form onSubmit={handleSubmit} className="space-y-8">
+      <div className="space-y-3">
+        <Label htmlFor="article-url" className="flex items-center gap-2">
+          <Globe className="h-5 w-5 text-primary" />
+          WeChat Article URL
+        </Label>
+        <div className="relative">
+          <Input
+            id="article-url"
+            placeholder="https://mp.weixin.qq.com/s/..."
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            disabled={isLoading}
+            className={`pl-12 ${isLoading ? 'bg-opacity-50' : ''}`}
+          />
+          <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-primary">
+            <Link className="h-5 w-5" />
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1.5 pl-1">
+          Enter the URL of a WeChat article (e.g., https://mp.weixin.qq.com/s/...)
+        </p>
       </div>
 
       {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+        <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-2">
+          <AlertCircle className="h-5 w-5 mr-2" />
+          <AlertDescription className="text-base">{error}</AlertDescription>
         </Alert>
       )}
 
       {isLoading && (
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>Converting article...</span>
-            <span>{progress}%</span>
+        <div className="space-y-3 animate-in fade-in-0">
+          <div className="flex justify-between text-base text-muted-foreground">
+            <span className="flex items-center">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Converting article...
+            </span>
+            <span className="font-medium">{progress}%</span>
           </div>
-          <Progress value={progress} />
+          <Progress value={progress} className="h-2.5" />
         </div>
       )}
 
-      <Button type="submit" className="w-full" disabled={isLoading}>
+      <Button 
+        type="submit" 
+        className="w-full transition-all duration-200 font-medium text-base" 
+        disabled={isLoading}
+        size="lg"
+      >
         {isLoading ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-3 h-5 w-5 animate-spin" />
             Converting...
           </>
         ) : (
