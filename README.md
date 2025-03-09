@@ -1,8 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WeChat to Markdown Converter
 
-## Getting Started
+A modern web application that converts WeChat public account articles to clean Markdown format with image support.
 
-### Project structure overview
+[中文文档](README_CN.md) | English
+
+![WeChat to Markdown Converter](public/screenshot.png)
+
+## Features
+
+- 🔄 Convert WeChat articles to clean Markdown with a single click
+- 🖼️ Automatically downloads and processes images from the article
+- 👁️ Live preview of the converted Markdown content
+- 💾 Download options for Markdown file only or complete package with images
+- 🌓 Light and dark mode support
+- 📱 Responsive design for all devices
+
+## Usage Guide
+
+### Converting an Article
+
+1. **Enter the WeChat Article URL**
+   - Paste the URL of a WeChat public account article (e.g., `https://mp.weixin.qq.com/s/...`)
+   - The URL must be from the WeChat public platform (`mp.weixin.qq.com` or `weixin.qq.com`)
+
+2. **Click "Convert to Markdown"**
+   - The application will fetch and process the article content
+   - A progress indicator will show the conversion status
+
+3. **View the Converted Content**
+   - After successful conversion, you'll be automatically taken to the Preview tab
+   - You can switch between rendered preview and raw Markdown source
+
+### Downloading Files
+
+1. **Download Options**
+   - **Markdown File**: Download just the Markdown file (.md)
+   - **Complete Package**: Download a ZIP file containing both the Markdown file and all images
+
+2. **Image Management**
+   - All images from the article are automatically processed
+   - Images are saved with unique filenames in an "images" folder
+   - In the Markdown file, images are referenced using relative paths (`./images/filename`)
+
+### Tips for Best Results
+
+- Ensure the WeChat article URL is publicly accessible
+- For articles with many images, the conversion may take a little longer
+- If you encounter any issues with specific articles, try clearing your browser cache and retrying
+
+## Getting Started for Developers
+
+First, clone the repository:
+
+```bash
+git clone https://github.com/yourusername/wechat-to-markdown.git
+cd wechat-to-markdown
+```
+
+Install the dependencies:
+
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+```
+
+Run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Project Structure
+
 ```
 wechat-to-markdown/
 ├── public/
@@ -32,35 +110,20 @@ wechat-to-markdown/
 └── tailwind.config.js
 ```
 
-First, run the development server:
+## Technologies Used
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- [Next.js](https://nextjs.org/) - React framework
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+- [shadcn/ui](https://ui.shadcn.com/) - UI component library
+- [Turndown](https://github.com/mixmark-io/turndown) - HTML to Markdown converter
+- [Cheerio](https://cheerio.js.org/) - Fast, flexible HTML parser
+- [JSZip](https://stuk.github.io/jszip/) - JavaScript library for creating ZIP files
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## License
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Acknowledgements
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Thanks to the WeChat platform for providing rich content
+- All the open-source libraries that made this project possible
