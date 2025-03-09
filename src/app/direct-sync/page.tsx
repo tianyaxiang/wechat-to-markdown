@@ -23,7 +23,7 @@ const DEFAULT_CONFIG: ConfigData = {
   githubBranch: '',
   markdownDir: 'articles',
   imagesDir: 'images',
-  markdownTemplate: '---\ntitle: {{title}}\ndate: {{date}}\nsource: {{source}}\n---\n\n'
+  markdownTemplate: '---\ntitle: {{title}}\ndate: {{date}}\nsource: {{source}}\ndescription: {{description}}\n---\n\n'
 };
 
 export default function DirectSyncPage() {

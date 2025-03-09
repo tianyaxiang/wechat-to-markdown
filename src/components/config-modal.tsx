@@ -41,7 +41,7 @@ const DEFAULT_VALUES = {
   githubBranch: '',
   markdownDir: 'articles',
   imagesDir: 'images',
-  markdownTemplate: '---\ntitle: {{title}}\ndate: {{date}}\nsource: {{source}}\n---\n\n'
+  markdownTemplate: '---\ntitle: {{title}}\ndate: {{date}}\nsource: {{source}}\ndescription: {{description}}\n---\n\n'
 };
 
 export default function ConfigModal({ isOpen, onClose, config, onSave }: ConfigModalProps) {
@@ -197,6 +197,7 @@ export default function ConfigModal({ isOpen, onClose, config, onSave }: ConfigM
 title: {{title}}
 date: {{date}}
 source: {{source}}
+description: {{description}}
 ---
 
 "
@@ -206,7 +207,7 @@ source: {{source}}
                   className="font-mono text-sm"
                 />
                 <p className="text-sm text-slate-500">
-                  Available variables: {'{'}{'{'} title {'}'}{'}'},  {'{'}{'{'} date {'}'}{'}'},  {'{'}{'{'} source {'}'}{'}'}
+                  Available variables: {'{'}{'{'} title {'}'}{'}'},  {'{'}{'{'} date {'}'}{'}'},  {'{'}{'{'} source {'}'}{'}'},  {'{'}{'{'} description {'}'}{'}'}
                 </p>
               </div>
             </TabsContent>

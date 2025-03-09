@@ -8,6 +8,7 @@ interface GithubConfig {
   branch?: string;
   markdownDir?: string;
   imagesDir?: string;
+  markdownTemplate?: string;
 }
 
 interface RequestBody {
@@ -156,6 +157,36 @@ function sanitizeTitle(title: string): string {
 
 async function syncToGithub(articleData: any, githubConfig: GithubConfig) {
   try {
+    // Apply markdown template if needed
+    if (githubConfig.markdownTemplate && articleData.markdown) {
+      const now = new Date();
+      const formattedDate = now.toISOString().split('T')[0];
+      
+      // Extract the first paragraph as description (limited to 150 characters)
+      let description = '';
+      const firstParagraphMatch = articleData.markdown.match(/^(.+?)(\n\n|$)/);
+      if (firstParagraphMatch && firstParagraphMatch[1]) {
+        // Remove any markdown formatting from the description
+        description = firstParagraphMatch[1]
+          .replace(/[#*_~`]/g, '') // Remove markdown formatting characters
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Replace links with just their text
+          .trim();
+        
+        // Limit description length
+        if (description.length > 150) {
+          description = description.substring(0, 147) + '...';
+        }
+      }
+      
+      let templatedMarkdown = githubConfig.markdownTemplate
+        .replace('{{title}}', articleData.title)
+        .replace('{{date}}', formattedDate)
+        .replace('{{source}}', articleData.originalUrl)
+        .replace('{{description}}', description);
+      
+      articleData.markdown = templatedMarkdown + articleData.markdown;
+    }
+    
     const sanitizedTitle = sanitizeTitle(articleData.title);
     const markdownFilename = `${sanitizedTitle}.md`;
     const date = new Date().toISOString().split('T')[0];
