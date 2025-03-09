@@ -1,6 +1,5 @@
-import type { NextConfig } from 'next'
-
-const config: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
   images: {
     domains: ['mmbiz.qpic.cn', 'mmbiz.qlogo.cn'], // WeChat CDN domains for images
@@ -20,4 +19,4 @@ const config: NextConfig = {
   },
 }
 
-export default config 
+module.exports = nextConfig 
