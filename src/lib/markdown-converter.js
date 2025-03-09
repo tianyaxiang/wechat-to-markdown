@@ -85,17 +85,17 @@ export function createArticleMarkdown(articleData) {
   
   // Create metadata header
   //let markdown = `# ${title}\n\n`;
-  
+  let markdown = ``;
   if (author) {
-    markdown += `> 作者：${author}\n>\n`;
+    //markdown += `> 作者：${author}\n>\n`;
   }
   
   if (publishTime) {
-    markdown += `> 发布时间：${publishTime}\n>\n`;
+   // markdown += `> 发布时间：${publishTime}\n>\n`;
   }
   
   if (url) {
-    markdown += `> 公众号链接：${url}\n\n`;
+   // markdown += `> 公众号链接：${url}\n\n`;
   }
   
   // Combine metadata and content

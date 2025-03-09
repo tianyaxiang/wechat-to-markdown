@@ -76,6 +76,60 @@ export default function Home() {
     setIsConfigOpen(false);
   };
   
+  const onConversionComplete = (data: ArticleData) => {
+    // Apply markdown template if configured
+    if (configData.markdownTemplate && data.markdown) {
+      const now = new Date();
+      const formattedDate = now.toISOString().split('T')[0];
+      
+      // Extract description - first try to get the first paragraph, then fallback to first 30 chars
+      let description = '';
+      
+      // Remove the title heading if it exists
+      const contentWithoutTitle = data.markdown.replace(/^# .+?\n+/, '');
+      
+      // Try to extract the first paragraph
+      const firstParagraphMatch = contentWithoutTitle.match(/^(.+?)(\n\n|$)/);
+      if (firstParagraphMatch && firstParagraphMatch[1]) {
+        // Remove any markdown formatting from the description
+        description = firstParagraphMatch[1]
+          .replace(/[#*_~`]/g, '') // Remove markdown formatting characters
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Replace links with just their text
+          .trim();
+      }
+      
+      // If description is still empty or too short, use the first 30 chars of content
+      if (!description || description.length < 5) {
+        const plainText = contentWithoutTitle
+          .replace(/[#*_~`]/g, '')
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+          .replace(/\n+/g, ' ')
+          .trim();
+        
+        description = plainText.substring(0, 30) + (plainText.length > 30 ? '...' : '');
+      } else if (description.length > 150) {
+        // Limit description length if it's too long
+        description = description.substring(0, 147) + '...';
+      }
+      
+      // Ensure description is not empty
+      if (!description) {
+        description = data.title;
+      }
+      
+      let templatedMarkdown = configData.markdownTemplate
+        .replace(/{{title}}/g, data.title)
+        .replace(/{{date}}/g, formattedDate)
+        .replace(/{{source}}/g, data.originalUrl)
+        .replace(/{{description}}/g, description);
+      
+      data.markdown = templatedMarkdown + contentWithoutTitle;
+    }
+    
+    setMarkdown(data.markdown);
+    setArticleData(data);
+  };
+  
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-100 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       {/* Navbar */}
@@ -140,22 +194,7 @@ export default function Home() {
               </CardHeader>
               <CardContent className="pt-4">
                 <ConverterForm 
-                  onConversionComplete={(data: ArticleData) => {
-                    // Apply markdown template if configured
-                    if (configData.markdownTemplate && data.markdown) {
-                      const now = new Date();
-                      const formattedDate = now.toISOString().split('T')[0];
-                      let templatedMarkdown = configData.markdownTemplate
-                        .replace('{{title}}', data.title)
-                        .replace('{{date}}', formattedDate)
-                        .replace('{{source}}', data.originalUrl);
-                      
-                      data.markdown = templatedMarkdown + data.markdown;
-                    }
-                    
-                    setMarkdown(data.markdown);
-                    setArticleData(data);
-                  }}
+                  onConversionComplete={onConversionComplete}
                   setIsLoading={setIsLoading}
                   isLoading={isLoading}
                 />

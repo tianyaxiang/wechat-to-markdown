@@ -90,7 +90,7 @@ export async function POST(request) {
 
     // Add article metadata at the top
     let articleInfo = `# ${title}\n\n`;
-
+/*
     if (author) {
       articleInfo += `> 作者：${author}\n>\n`;
     }
@@ -100,7 +100,7 @@ export async function POST(request) {
     }
 
     articleInfo += `> 原文链接：${url}\n\n`;
-
+**/
     markdown = articleInfo + markdown;
 
     // Generate an ID for this conversion

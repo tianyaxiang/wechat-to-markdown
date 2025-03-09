@@ -8,6 +8,7 @@ interface GithubConfig {
   branch?: string;
   markdownDir?: string;
   imagesDir?: string;
+  markdownTemplate?: string;
 }
 
 interface RequestBody {
@@ -156,6 +157,55 @@ function sanitizeTitle(title: string): string {
 
 async function syncToGithub(articleData: any, githubConfig: GithubConfig) {
   try {
+    // Apply markdown template if needed
+    if (githubConfig.markdownTemplate && articleData.markdown) {
+      const now = new Date();
+      const formattedDate = now.toISOString().split('T')[0];
+      
+      // Remove the title heading if it exists
+      const contentWithoutTitle = articleData.markdown.replace(/^# .+?\n+/, '');
+      
+      // Extract description - first try to get the first paragraph, then fallback to first 30 chars
+      let description = '';
+      
+      // Try to extract the first paragraph
+      const firstParagraphMatch = contentWithoutTitle.match(/^(.+?)(\n\n|$)/);
+      if (firstParagraphMatch && firstParagraphMatch[1]) {
+        // Remove any markdown formatting from the description
+        description = firstParagraphMatch[1]
+          .replace(/[#*_~`]/g, '') // Remove markdown formatting characters
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Replace links with just their text
+          .trim();
+      }
+      
+      // If description is still empty or too short, use the first 30 chars of content
+      if (!description || description.length < 5) {
+        const plainText = contentWithoutTitle
+          .replace(/[#*_~`]/g, '')
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+          .replace(/\n+/g, ' ')
+          .trim();
+        
+        description = plainText.substring(0, 30) + (plainText.length > 30 ? '...' : '');
+      } else if (description.length > 150) {
+        // Limit description length if it's too long
+        description = description.substring(0, 147) + '...';
+      }
+      
+      // Ensure description is not empty
+      if (!description) {
+        description = articleData.title;
+      }
+      
+      let templatedMarkdown = githubConfig.markdownTemplate
+        .replace(/{{title}}/g, articleData.title)
+        .replace(/{{date}}/g, formattedDate)
+        .replace(/{{source}}/g, articleData.originalUrl)
+        .replace(/{{description}}/g, description);
+      
+      articleData.markdown = templatedMarkdown + contentWithoutTitle;
+    }
+    
     const sanitizedTitle = sanitizeTitle(articleData.title);
     const markdownFilename = `${sanitizedTitle}.md`;
     const date = new Date().toISOString().split('T')[0];
