@@ -2,8 +2,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-// Project structure overview
-/*
+### Project structure overview
 wechat-to-markdown/
 ├── public/
 │   └── placeholder.png
@@ -30,7 +29,7 @@ wechat-to-markdown/
 ├── next.config.js
 ├── package.json
 └── tailwind.config.js
-*/
+
 
 First, run the development server:
 
