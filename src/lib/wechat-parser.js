@@ -52,7 +52,7 @@ export function parseWeChatArticle(html) {
         ? extension
         : 'jpg';
       const imageId = uuidv4();
-      const filename = `${imageId}`;
+      const filename = `${imageId}.jpg`;
 
       // Update image source to point to local path
       el.attr('src', `./images/${filename}`);
