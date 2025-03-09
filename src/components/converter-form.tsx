@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input, Button, Label, Progress, Alert, AlertDescription, useToast } from '@/components/ui';
 import { Loader2, Link as LinkIcon, AlertCircle, Globe, X } from 'lucide-react';
 import axios from 'axios';
@@ -24,6 +24,24 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
   const [progress, setProgress] = useState<number>(0);
   const [error, setError] = useState<string>('');
   const { toast } = useToast();
+  
+  // Check for pre-filled URL from localStorage when component mounts
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedUrl = localStorage.getItem('wechat-article-url');
+      if (savedUrl) {
+        setUrl(savedUrl);
+        // Clear the saved URL so it doesn't persist across page refreshes
+        localStorage.removeItem('wechat-article-url');
+        
+        // Show a toast to inform the user
+        toast({
+          title: "URL Loaded",
+          description: "The article URL has been loaded from Direct Sync page.",
+        });
+      }
+    }
+  }, [toast]);
 
   const isValidUrl = (string: string): boolean => {
     try {

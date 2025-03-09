@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Button, Card, CardContent, Input, Label, Textarea } from '@/components/ui';
-import { Github, Loader2, RefreshCw } from 'lucide-react';
+import { Github, Loader2, RefreshCw, ExternalLink } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useRouter } from 'next/navigation';
 
 // Define the config data type (matching the one in the main app)
 interface ConfigData {
@@ -26,6 +27,7 @@ const DEFAULT_CONFIG: ConfigData = {
 };
 
 export default function DirectSyncPage() {
+  const router = useRouter();
   const [url, setUrl] = useState<string>('');
   const [githubRepo, setGithubRepo] = useState<string>('');
   const [githubToken, setGithubToken] = useState<string>('');
@@ -37,6 +39,17 @@ export default function DirectSyncPage() {
   const [useStoredConfig, setUseStoredConfig] = useState<boolean>(true);
   const [storedConfig, setStoredConfig] = useState<ConfigData | null>(null);
   const { toast } = useToast();
+
+  // Function to redirect to main converter with URL pre-filled
+  const goToMainConverter = () => {
+    // Store the URL in localStorage so the main converter can use it
+    if (url) {
+      localStorage.setItem('wechat-article-url', url);
+      router.push('/');
+    } else {
+      router.push('/');
+    }
+  };
 
   // Load stored configuration from localStorage on component mount
   useEffect(() => {
@@ -87,8 +100,21 @@ export default function DirectSyncPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate URL
     if (!url.trim()) {
       setError('Please enter a WeChat article URL');
+      return;
+    }
+    
+    // Ensure URL is properly formatted
+    if (!url.startsWith('http')) {
+      setError('Invalid URL format. URL must start with http:// or https://');
+      return;
+    }
+    
+    // Validate that it's a WeChat URL
+    if (!url.includes('mp.weixin.qq.com')) {
+      setError('URL does not appear to be a WeChat article. Please provide a URL from mp.weixin.qq.com');
       return;
     }
     
@@ -112,7 +138,7 @@ export default function DirectSyncPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          url,
+          url: url.trim(),
           githubConfig: {
             repo: githubRepo,
             token: githubToken,
@@ -123,10 +149,24 @@ export default function DirectSyncPage() {
         }),
       });
       
-      const data = await response.json();
+      let data;
+      try {
+        const responseText = await response.text();
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error('Failed to parse JSON response:', responseText);
+          throw new Error('Invalid response from server: ' + responseText.substring(0, 100));
+        }
+      } catch (e) {
+        console.error('Error processing response:', e);
+        throw new Error('Failed to process server response');
+      }
       
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to sync article');
+        const errorMessage = data?.message || 'Failed to sync article';
+        const errorDetails = data?.details ? `\n\n${data.details}` : '';
+        throw new Error(errorMessage + errorDetails);
       }
       
       toast({
@@ -162,13 +202,25 @@ export default function DirectSyncPage() {
           <div className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="url">WeChat Article URL</Label>
-              <Input
-                id="url"
-                placeholder="https://mp.weixin.qq.com/s/..."
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                required
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="url"
+                  placeholder="https://mp.weixin.qq.com/s/..."
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  required
+                  className="flex-1"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={goToMainConverter}
+                  title="Open in main converter"
+                  disabled={!url}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              </div>
               <p className="text-xs text-slate-500">Paste the full URL of the WeChat article you want to sync</p>
             </div>
             
@@ -267,8 +319,26 @@ export default function DirectSyncPage() {
             </div>
             
             {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800/30 text-red-600 dark:text-red-400 text-sm">
-                {error}
+              <div className="space-y-2">
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800/30 text-red-600 dark:text-red-400 text-sm whitespace-pre-line">
+                  {error}
+                </div>
+                
+                {error.includes('parsing') && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800/30 text-blue-600 dark:text-blue-400 text-sm">
+                    <p className="mb-2">Suggestion: Try using the main converter first to ensure the article can be parsed correctly.</p>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={goToMainConverter}
+                      className="w-full"
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Open in Main Converter
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
             
@@ -288,6 +358,43 @@ export default function DirectSyncPage() {
           </div>
         </form>
       </Card>
+      
+      <div className="mt-8">
+        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-400 text-sm">
+          <h3 className="font-medium mb-2">⚠️ Important Note</h3>
+          <p>If you're experiencing issues with direct syncing, please try the following steps:</p>
+          <ol className="list-decimal list-inside space-y-1 mt-2 ml-2">
+            <li>Use the <strong>main converter</strong> first to convert the article</li>
+            <li>Verify that the article content appears correctly in the preview</li>
+            <li>Then use the GitHub sync option from the Download tab</li>
+          </ol>
+          <div className="mt-3">
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm" 
+              onClick={goToMainConverter}
+              className="w-full"
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Go to Main Converter
+            </Button>
+          </div>
+        </div>
+        
+        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800/30 text-blue-700 dark:text-blue-400 text-sm">
+          <h3 className="font-medium mb-2">ℹ️ Why am I seeing parsing errors?</h3>
+          <p className="mb-2">The direct sync feature attempts to parse WeChat articles in a single step. However, some articles may require additional processing that's only available in the main converter.</p>
+          <p>Common reasons for parsing errors:</p>
+          <ul className="list-disc list-inside space-y-1 mt-2 ml-2">
+            <li>The article contains complex formatting or special elements</li>
+            <li>The article requires authentication or has access restrictions</li>
+            <li>WeChat has updated their article structure</li>
+            <li>Network issues when fetching the article content</li>
+          </ul>
+          <p className="mt-2">Using the main converter first allows you to verify the content before syncing to GitHub.</p>
+        </div>
+      </div>
       
       <div className="mt-8 text-sm text-slate-500 dark:text-slate-400">
         <h3 className="font-medium mb-2">How it works:</h3>
