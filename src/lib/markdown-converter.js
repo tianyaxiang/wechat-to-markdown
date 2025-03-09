@@ -23,6 +23,15 @@ export function convertHtmlToMarkdown(html, options = {}) {
     }
   });
 
+  // Fix strong tag conversion to prevent line breaks before closing **
+  turndownService.addRule('strongFix', {
+    filter: 'strong',
+    replacement: function(content, node) {
+      // Trim any trailing whitespace or line breaks to ensure closing ** is on the same line
+      return `**${content.trim()}**`;
+    }
+  });
+
   // Improve code block handling
   turndownService.addRule('codeBlocks', {
     filter: function(node) {

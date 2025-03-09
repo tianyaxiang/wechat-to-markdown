@@ -74,6 +74,15 @@ export async function POST(request) {
       }
     });
 
+    // Fix strong tag conversion to prevent line breaks before closing **
+    turndownService.addRule('strongFix', {
+      filter: 'strong',
+      replacement: function(content) {
+        // Trim any trailing whitespace or line breaks to ensure closing ** is on the same line
+        return `**${content.trim()}**`;
+      }
+    });
+
     // Convert HTML to Markdown
     const contentHtml = $('#js_content').html();
     let markdown = turndownService.turndown(contentHtml);
