@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Input, Button, Label, Progress, Alert, AlertDescription, useToast } from '@/components/ui';
-import { Loader2, Link, AlertCircle, Globe, X } from 'lucide-react';
+import { Loader2, Link as LinkIcon, AlertCircle, Globe, X } from 'lucide-react';
 import axios from 'axios';
 
 interface ArticleData {
@@ -36,60 +36,75 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!url) {
-      setError('Please enter a URL');
-      return;
-    }
-
-    if (!isValidUrl(url)) {
-      setError('Please enter a valid WeChat article URL');
-      return;
-    }
-
     setError('');
-    setIsLoading(true);
-    setProgress(10);
-
+    
+    if (!url.trim()) {
+      setError('Please enter a WeChat article URL');
+      toast({
+        title: "Error",
+        description: "Please enter a valid WeChat article URL",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!isValidUrl(url)) {
+      setError('Please enter a valid WeChat article URL (mp.weixin.qq.com)');
+      toast({
+        title: "Error",
+        description: "The URL must be from WeChat (mp.weixin.qq.com)",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
-      // Simulate progress updates
+      setIsLoading(true);
+      
+      // Simulate progress
       const progressInterval = setInterval(() => {
         setProgress(prev => {
-          const newProgress = prev + 5;
-          if (newProgress >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return newProgress;
+          const newProgress = prev + Math.floor(Math.random() * 10);
+          return newProgress > 90 ? 90 : newProgress;
         });
-      }, 300);
-
-      const response = await axios.post('/api/convert', { url });
+      }, 500);
+      
+      // Call the API to convert the WeChat article
+      const response = await fetch('/api/convert', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+      
       clearInterval(progressInterval);
       setProgress(100);
-
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to convert article');
+      }
+      
+      const data = await response.json();
+      onConversionComplete(data);
+      
       toast({
-        title: "Conversion completed!",
-        description: "Article successfully converted to Markdown.",
+        title: "Success",
+        description: "Article converted successfully!",
       });
-
-      onConversionComplete({
-        markdown: response.data.markdown,
-        title: response.data.title,
-        images: response.data.images,
-        originalUrl: url,
-        id: response.data.id
-      });
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to convert article. Please try again.');
+    } catch (error) {
+      console.error('Conversion error:', error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
       toast({
+        title: "Conversion Failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive",
-        title: "Conversion failed",
-        description: "There was a problem converting your article.",
       });
     } finally {
       setIsLoading(false);
-      setProgress(0);
+      // Reset progress after a delay
+      setTimeout(() => setProgress(0), 1000);
     }
   };
 
@@ -131,7 +146,7 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
             className={`pl-12 ${url ? 'pr-12' : ''} ${isLoading ? 'bg-opacity-50' : ''}`}
           />
           <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-primary">
-            <Link className="h-5 w-5" />
+            <LinkIcon className="h-5 w-5" />
           </div>
           {url && (
             <Button

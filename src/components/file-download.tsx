@@ -1,177 +1,350 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Card, useToast } from '@/components/ui';
-import { Download, FileDown, Image as ImageIcon, FileArchive, Loader2, FileText, Download as DownloadIcon } from 'lucide-react';
-import axios from 'axios';
+import { Button, Card, CardContent } from '@/components/ui';
+import { Download, Github, Check, AlertCircle } from 'lucide-react';
 import JSZip from 'jszip';
-
-interface ArticleImage {
-  url: string;
-  filename: string;
-}
+import { saveAs } from 'file-saver';
 
 interface ArticleData {
   markdown: string;
   title: string;
-  images: ArticleImage[];
+  images: Array<{ url: string; filename: string }>;
   originalUrl: string;
   id: string;
 }
 
-interface FileDownloadProps {
-  articleData: ArticleData | null;
+interface GithubConfig {
+  repo: string;
+  token: string;
 }
 
-export default function FileDownload({ articleData }: FileDownloadProps) {
+interface FileDownloadProps {
+  articleData: ArticleData | null;
+  githubConfig?: GithubConfig;
+}
+
+export default function FileDownload({ articleData, githubConfig }: FileDownloadProps) {
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [syncError, setSyncError] = useState<string>('');
+  const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const { toast } = useToast();
 
   if (!articleData) {
-    return <div className="text-center py-12 text-muted-foreground text-lg">No article data available. Please convert an article first.</div>;
+    return <div>No article data available</div>;
   }
 
-  const { title, images = [] } = articleData;
-  const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-
-  const downloadMarkdownFile = () => {
-    const blob = new Blob([articleData.markdown], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${sanitizedTitle}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: "Markdown downloaded",
-      description: "The Markdown file has been downloaded.",
-    });
-  };
-
-  const downloadAllAsZip = async () => {
-    setIsDownloading(true);
-
+  const handleDownload = async () => {
     try {
+      setIsDownloading(true);
+      setDownloadProgress(0);
+      
       const zip = new JSZip();
-
+      
       // Add markdown file
-      zip.file(`${sanitizedTitle}.md`, articleData.markdown);
-
+      const sanitizedTitle = articleData.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
+      const markdownFilename = `${sanitizedTitle}.md`;
+      zip.file(markdownFilename, articleData.markdown);
+      
       // Create images folder
-      const imgFolder = zip.folder('images');
-
+      const imagesFolder = zip.folder('images');
+      
       // Add images
-      const imagePromises = images.map(async (image) => {
+      const totalImages = articleData.images.length;
+      let completedImages = 0;
+      
+      for (const image of articleData.images) {
         try {
-          const response = await axios.get(`/api/download?url=${encodeURIComponent(image.url)}`, {
-            responseType: 'arraybuffer'
-          });
-
-          imgFolder?.file(image.filename, response.data);
-          return true;
+          // Use our proxy API to fetch the image
+          const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(image.url)}`;
+          const response = await fetch(proxyUrl);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.statusText}`);
+          }
+          
+          const blob = await response.blob();
+          imagesFolder?.file(image.filename, blob);
+          
+          // Update progress
+          completedImages++;
+          setDownloadProgress(Math.round((completedImages / totalImages) * 100));
         } catch (error) {
           console.error(`Failed to download image: ${image.url}`, error);
-          return false;
         }
+      }
+      
+      // Generate and save zip
+      const content = await zip.generateAsync({ 
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
       });
-
-      await Promise.all(imagePromises);
-
-      // Generate the zip file
-      const content = await zip.generateAsync({ type: 'blob' });
-
-      // Trigger download
-      const url = URL.createObjectURL(content);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${sanitizedTitle}_with_images.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast({
-        title: "Download complete",
-        description: "The ZIP file with Markdown and images has been downloaded.",
-      });
+      
+      saveAs(content, `${sanitizedTitle}.zip`);
     } catch (error) {
-      console.error('Failed to create ZIP file', error);
-      toast({
-        variant: "destructive",
-        title: "Download failed",
-        description: "There was a problem creating the ZIP file. Please try again.",
-      });
+      console.error('Download error:', error);
     } finally {
       setIsDownloading(false);
     }
   };
 
+  const handleGithubSync = async () => {
+    if (!githubConfig) return;
+    
+    setSyncStatus('syncing');
+    setSyncError('');
+    
+    try {
+      const sanitizedTitle = articleData.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
+      const markdownFilename = `${sanitizedTitle}.md`;
+      const date = new Date().toISOString().split('T')[0];
+      const folderPath = `articles/${date}-${sanitizedTitle}`;
+      
+      // Create a new branch
+      const branchName = `article-${date}-${Math.floor(Math.random() * 1000)}`;
+      
+      // Get the default branch
+      const repoInfoResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}`, {
+        headers: {
+          'Authorization': `token ${githubConfig.token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      
+      if (!repoInfoResponse.ok) {
+        throw new Error(`Failed to get repository info: ${repoInfoResponse.statusText}`);
+      }
+      
+      const repoInfo = await repoInfoResponse.json();
+      const defaultBranch = repoInfo.default_branch;
+      
+      // Get the reference to the default branch
+      const refResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/git/refs/heads/${defaultBranch}`, {
+        headers: {
+          'Authorization': `token ${githubConfig.token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      
+      if (!refResponse.ok) {
+        throw new Error(`Failed to get reference: ${refResponse.statusText}`);
+      }
+      
+      const refData = await refResponse.json();
+      
+      // Create a new branch
+      const createBranchResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/git/refs`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${githubConfig.token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ref: `refs/heads/${branchName}`,
+          sha: refData.object.sha
+        })
+      });
+      
+      if (!createBranchResponse.ok) {
+        throw new Error(`Failed to create branch: ${createBranchResponse.statusText}`);
+      }
+      
+      // Upload markdown file
+      const markdownResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/contents/${folderPath}/${markdownFilename}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `token ${githubConfig.token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: `Add article: ${articleData.title}`,
+          content: btoa(unescape(encodeURIComponent(articleData.markdown))),
+          branch: branchName
+        })
+      });
+      
+      if (!markdownResponse.ok) {
+        throw new Error(`Failed to upload markdown: ${markdownResponse.statusText}`);
+      }
+      
+      // Upload images
+      for (const image of articleData.images) {
+        try {
+          // Use our proxy API to fetch the image
+          const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(image.url)}`;
+          const response = await fetch(proxyUrl);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.statusText}`);
+          }
+          
+          const blob = await response.blob();
+          
+          // Convert blob to base64
+          const reader = new FileReader();
+          const base64Promise = new Promise<string>((resolve) => {
+            reader.onloadend = () => {
+              const base64data = reader.result as string;
+              resolve(base64data.split(',')[1]);
+            };
+          });
+          reader.readAsDataURL(blob);
+          const base64data = await base64Promise;
+          
+          // Upload image to GitHub
+          const imageResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/contents/${folderPath}/images/${image.filename}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `token ${githubConfig.token}`,
+              'Accept': 'application/vnd.github.v3+json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              message: `Add image for article: ${articleData.title}`,
+              content: base64data,
+              branch: branchName
+            })
+          });
+          
+          if (!imageResponse.ok) {
+            throw new Error(`Failed to upload image: ${imageResponse.statusText}`);
+          }
+        } catch (error) {
+          console.error(`Failed to upload image: ${image.url}`, error);
+          throw error;
+        }
+      }
+      
+      // Create a pull request
+      const prResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/pulls`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${githubConfig.token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: `Add article: ${articleData.title}`,
+          head: branchName,
+          base: defaultBranch,
+          body: `This PR adds a new article: ${articleData.title}\n\nSource: ${articleData.originalUrl}`
+        })
+      });
+      
+      if (!prResponse.ok) {
+        throw new Error(`Failed to create pull request: ${prResponse.statusText}`);
+      }
+      
+      setSyncStatus('success');
+    } catch (error) {
+      console.error('GitHub sync error:', error);
+      setSyncStatus('error');
+      setSyncError(error instanceof Error ? error.message : 'Unknown error occurred');
+    }
+  };
+
   return (
-    <div className="space-y-10">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="p-8 flex flex-col items-center justify-between space-y-6 shadow-lg hover:shadow-xl transition-all duration-200">
-          <div className="text-center">
-            <div className="bg-primary/10 p-4 rounded-full inline-flex items-center justify-center mb-4">
-              <FileText className="h-10 w-10 text-primary" />
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="p-4 border border-slate-200 dark:border-slate-800">
+          <CardContent className="p-0 space-y-4">
+            <div>
+              <h3 className="font-medium text-lg">Download as ZIP</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Download the Markdown file and all images as a ZIP archive
+              </p>
             </div>
-            <h3 className="font-bold text-xl mb-2">Markdown File</h3>
-            <p className="text-base text-muted-foreground">{sanitizedTitle}.md</p>
-          </div>
-          <Button onClick={downloadMarkdownFile} className="w-full text-base" size="lg">
-            <DownloadIcon className="mr-2 h-5 w-5" />
-            Download Markdown
-          </Button>
-        </Card>
-
-        <Card className="p-8 flex flex-col items-center justify-between space-y-6 shadow-lg hover:shadow-xl transition-all duration-200">
-          <div className="text-center">
-            <div className="bg-primary/10 p-4 rounded-full inline-flex items-center justify-center mb-4">
-              <FileArchive className="h-10 w-10 text-primary" />
-            </div>
-            <h3 className="font-bold text-xl mb-2">Complete Package</h3>
-            <p className="text-base text-muted-foreground">Markdown + {images.length} images</p>
-          </div>
-          <Button
-            onClick={downloadAllAsZip}
-            className="w-full text-base"
-            disabled={isDownloading}
-            size="lg"
-          >
-            {isDownloading ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Creating ZIP...
-              </>
-            ) : (
-              <>
-                <DownloadIcon className="mr-2 h-5 w-5" />
-                Download ZIP
-              </>
+            
+            {isDownloading && downloadProgress > 0 && (
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 mb-4">
+                <div 
+                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
+                  style={{ width: `${downloadProgress}%` }}
+                ></div>
+              </div>
             )}
-          </Button>
+            
+            <Button 
+              onClick={handleDownload} 
+              className="w-full"
+              disabled={isDownloading}
+            >
+              {isDownloading ? (
+                <>
+                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                  Downloading... {downloadProgress}%
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download ZIP
+                </>
+              )}
+            </Button>
+          </CardContent>
         </Card>
-      </div>
-
-      {images.length > 0 && (
-        <div className="mt-12">
-          <h3 className="font-bold text-xl mb-6 pb-2 border-b">Images ({images.length})</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-            {images.map((image, index) => (
-              <div key={index} className="border rounded-md p-4 flex flex-col items-center shadow-md hover:shadow-lg transition-all duration-200">
-                <div className="bg-gray-100 dark:bg-gray-800 w-full h-32 flex items-center justify-center rounded-md mb-3">
-                  <ImageIcon className="h-10 w-10 text-primary/60" />
-                </div>
-                <p className="text-sm text-muted-foreground truncate w-full text-center" title={image.filename}>
-                  {image.filename}
+        
+        {githubConfig && (
+          <Card className="p-4 border border-slate-200 dark:border-slate-800">
+            <CardContent className="p-0 space-y-4">
+              <div>
+                <h3 className="font-medium text-lg">Sync to GitHub</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Push the article to your GitHub repository
                 </p>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              <Button 
+                onClick={handleGithubSync} 
+                className="w-full"
+                disabled={syncStatus === 'syncing'}
+                variant={syncStatus === 'success' ? 'outline' : 'default'}
+              >
+                {syncStatus === 'idle' && (
+                  <>
+                    <Github className="mr-2 h-4 w-4" />
+                    Sync to GitHub
+                  </>
+                )}
+                {syncStatus === 'syncing' && (
+                  <>
+                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                    Syncing...
+                  </>
+                )}
+                {syncStatus === 'success' && (
+                  <>
+                    <Check className="mr-2 h-4 w-4 text-green-500" />
+                    Synced Successfully
+                  </>
+                )}
+                {syncStatus === 'error' && (
+                  <>
+                    <AlertCircle className="mr-2 h-4 w-4 text-red-500" />
+                    Sync Failed
+                  </>
+                )}
+              </Button>
+              
+              {syncStatus === 'error' && (
+                <div className="text-sm text-red-500 mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded">
+                  {syncError || 'An error occurred during GitHub synchronization.'}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+      
+      <div className="text-sm text-slate-500 dark:text-slate-400">
+        <p>The downloaded ZIP contains:</p>
+        <ul className="list-disc list-inside mt-2 space-y-1">
+          <li>Markdown file with the article content</li>
+          <li>Images folder with all article images</li>
+        </ul>
+      </div>
     </div>
   );
 } 

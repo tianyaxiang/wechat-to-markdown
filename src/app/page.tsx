@@ -5,7 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger, Card, CardContent, CardDescri
 import ConverterForm from '@/components/converter-form';
 import MarkdownPreview from '@/components/markdown-preview';
 import FileDownload from '@/components/file-download';
-import { Github } from 'lucide-react';
+import { Github, Settings } from 'lucide-react';
+import ConfigModal from '@/components/config-modal';
 
 // Define the article data type
 interface ArticleData {
@@ -16,10 +17,38 @@ interface ArticleData {
   id: string;
 }
 
+// Define the config data type
+interface ConfigData {
+  githubRepo: string;
+  githubToken: string;
+  markdownTemplate: string;
+}
+
 export default function Home() {
   const [markdown, setMarkdown] = useState<string>('');
   const [articleData, setArticleData] = useState<ArticleData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isConfigOpen, setIsConfigOpen] = useState<boolean>(false);
+  const [configData, setConfigData] = useState<ConfigData>(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      const savedConfig = localStorage.getItem('wechat-to-markdown-config');
+      if (savedConfig) {
+        return JSON.parse(savedConfig);
+      }
+    }
+    return {
+      githubRepo: '',
+      githubToken: '',
+      markdownTemplate: '---\ntitle: {{title}}\ndate: {{date}}\nsource: {{source}}\n---\n\n'
+    };
+  });
+  
+  const saveConfig = (newConfig: ConfigData) => {
+    setConfigData(newConfig);
+    localStorage.setItem('wechat-to-markdown-config', JSON.stringify(newConfig));
+    setIsConfigOpen(false);
+  };
   
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-100 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
@@ -45,6 +74,13 @@ export default function Home() {
           </nav>
           
           <div className="flex flex-1 items-center justify-end space-x-4">
+            <button 
+              onClick={() => setIsConfigOpen(true)}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-9 py-2 px-3"
+            >
+              <Settings className="h-5 w-5" />
+              <span className="sr-only">Settings</span>
+            </button>
             <a href="https://github.com/yourusername/wechat-to-markdown" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-9 py-2 px-3">
               <Github className="h-5 w-5" />
               <span className="sr-only">GitHub</span>
@@ -79,6 +115,18 @@ export default function Home() {
               <CardContent className="pt-4">
                 <ConverterForm 
                   onConversionComplete={(data: ArticleData) => {
+                    // Apply markdown template if configured
+                    if (configData.markdownTemplate && data.markdown) {
+                      const now = new Date();
+                      const formattedDate = now.toISOString().split('T')[0];
+                      let templatedMarkdown = configData.markdownTemplate
+                        .replace('{{title}}', data.title)
+                        .replace('{{date}}', formattedDate)
+                        .replace('{{source}}', data.originalUrl);
+                      
+                      data.markdown = templatedMarkdown + data.markdown;
+                    }
+                    
                     setMarkdown(data.markdown);
                     setArticleData(data);
                   }}
@@ -114,7 +162,13 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-4">
-                <FileDownload articleData={articleData} />
+                <FileDownload 
+                  articleData={articleData} 
+                  githubConfig={configData.githubRepo && configData.githubToken ? {
+                    repo: configData.githubRepo,
+                    token: configData.githubToken
+                  } : undefined}
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -126,6 +180,14 @@ export default function Home() {
         
         <Toaster />
       </div>
+      
+      {/* Configuration Modal */}
+      <ConfigModal 
+        isOpen={isConfigOpen} 
+        onClose={() => setIsConfigOpen(false)}
+        config={configData}
+        onSave={saveConfig}
+      />
     </main>
   );
 }
