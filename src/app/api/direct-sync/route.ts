@@ -20,8 +20,23 @@ export async function POST(request: NextRequest) {
     const body: RequestBody = await request.json();
     const { url, githubConfig } = body;
     
-    if (!url) {
+    // Validate URL
+    if (!url || !url.trim()) {
       return NextResponse.json({ message: 'WeChat article URL is required' }, { status: 400 });
+    }
+    
+    // Ensure URL is properly formatted
+    if (!url.startsWith('http')) {
+      return NextResponse.json({ 
+        message: 'Invalid URL format. URL must start with http:// or https://' 
+      }, { status: 400 });
+    }
+    
+    // Validate that it's a WeChat URL
+    if (!url.includes('mp.weixin.qq.com')) {
+      return NextResponse.json({ 
+        message: 'URL does not appear to be a WeChat article. Please provide a URL from mp.weixin.qq.com' 
+      }, { status: 400 });
     }
     
     if (!githubConfig || !githubConfig.repo || !githubConfig.token) {
@@ -29,20 +44,28 @@ export async function POST(request: NextRequest) {
     }
     
     // 1. Fetch and parse the WeChat article
-    const articleData = await fetchAndParseArticle(url);
-    
-    if (!articleData) {
-      return NextResponse.json({ message: 'Failed to fetch or parse the article' }, { status: 500 });
+    try {
+      const articleData = await fetchAndParseArticle(url);
+      
+      if (!articleData) {
+        return NextResponse.json({ message: 'Failed to fetch or parse the article' }, { status: 500 });
+      }
+      
+      // 2. Sync to GitHub
+      const result = await syncToGithub(articleData, githubConfig);
+      
+      return NextResponse.json({
+        message: 'Article synced successfully',
+        title: articleData.title,
+        ...result
+      });
+    } catch (parseError) {
+      console.error('Error parsing article:', parseError);
+      return NextResponse.json({ 
+        message: `Error parsing article: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`,
+        details: 'There was an issue with the article parsing service. Please try using the main converter first.'
+      }, { status: 500 });
     }
-    
-    // 2. Sync to GitHub
-    const result = await syncToGithub(articleData, githubConfig);
-    
-    return NextResponse.json({
-      message: 'Article synced successfully',
-      title: articleData.title,
-      ...result
-    });
   } catch (error) {
     console.error('Direct sync error:', error);
     return NextResponse.json({ 
@@ -53,8 +76,18 @@ export async function POST(request: NextRequest) {
 
 async function fetchAndParseArticle(url: string) {
   try {
-    // Call the existing article parser API
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/parse?url=${encodeURIComponent(url)}`, {
+    console.log(`Fetching article from URL: ${url}`);
+    
+    // Ensure URL is properly encoded
+    const encodedUrl = encodeURIComponent(url.trim());
+    
+    // Get the base URL for the API
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+    const apiUrl = `${baseUrl}/api/parse?url=${encodedUrl}`;
+    
+    console.log(`Making request to: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -62,11 +95,25 @@ async function fetchAndParseArticle(url: string) {
     });
     
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Failed to parse article: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`Error response from parse API: ${errorText}`);
+      
+      try {
+        const errorData = JSON.parse(errorText || '{}');
+        throw new Error(errorData.message || `Failed to parse article: ${response.statusText}`);
+      } catch (jsonError) {
+        // If JSON parsing fails, use the raw error text
+        throw new Error(`Failed to parse article: ${errorText || response.statusText}`);
+      }
     }
     
-    return await response.json();
+    const data = await response.json();
+    
+    if (!data || !data.title || !data.markdown) {
+      throw new Error('Invalid response from parse API: Missing required fields');
+    }
+    
+    return data;
   } catch (error) {
     console.error('Error fetching and parsing article:', error);
     throw error;

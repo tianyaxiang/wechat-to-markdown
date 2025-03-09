@@ -40,17 +40,6 @@ export default function DirectSyncPage() {
   const [storedConfig, setStoredConfig] = useState<ConfigData | null>(null);
   const { toast } = useToast();
 
-  // Function to redirect to main converter with URL pre-filled
-  const goToMainConverter = () => {
-    // Store the URL in localStorage so the main converter can use it
-    if (url) {
-      localStorage.setItem('wechat-article-url', url);
-      router.push('/');
-    } else {
-      router.push('/');
-    }
-  };
-
   // Load stored configuration from localStorage on component mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -189,7 +178,16 @@ export default function DirectSyncPage() {
       setIsLoading(false);
     }
   };
-  
+
+  // Function to redirect to main converter with URL pre-filled
+  const goToMainConverter = () => {
+    // Store the URL in localStorage so the main converter can use it
+    if (url) {
+      localStorage.setItem('wechat-article-url', url);
+      router.push('/');
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 max-w-3xl">
       <h1 className="text-3xl font-bold mb-6">Direct Sync to GitHub</h1>
@@ -380,19 +378,6 @@ export default function DirectSyncPage() {
               Go to Main Converter
             </Button>
           </div>
-        </div>
-        
-        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800/30 text-blue-700 dark:text-blue-400 text-sm">
-          <h3 className="font-medium mb-2">ℹ️ Why am I seeing parsing errors?</h3>
-          <p className="mb-2">The direct sync feature attempts to parse WeChat articles in a single step. However, some articles may require additional processing that's only available in the main converter.</p>
-          <p>Common reasons for parsing errors:</p>
-          <ul className="list-disc list-inside space-y-1 mt-2 ml-2">
-            <li>The article contains complex formatting or special elements</li>
-            <li>The article requires authentication or has access restrictions</li>
-            <li>WeChat has updated their article structure</li>
-            <li>Network issues when fetching the article content</li>
-          </ul>
-          <p className="mt-2">Using the main converter first allows you to verify the content before syncing to GitHub.</p>
         </div>
       </div>
       
