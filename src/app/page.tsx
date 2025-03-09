@@ -35,7 +35,7 @@ const DEFAULT_CONFIG: ConfigData = {
   githubBranch: '',
   markdownDir: 'articles',
   imagesDir: 'images',
-  markdownTemplate: '---\ntitle: {{title}}\ndate: {{date}}\nsource: {{source}}\ndescription: {{description}}\n---\n\n'
+  markdownTemplate: '---\ntitle: {{title}}\ndate: {{date}}\nsource: {{source}}\n---\n\n'
 };
 
 export default function Home() {
@@ -74,41 +74,6 @@ export default function Home() {
     setConfigData(configToSave);
     localStorage.setItem('wechat-to-markdown-config', JSON.stringify(configToSave));
     setIsConfigOpen(false);
-  };
-  
-  const onConversionComplete = (data: ArticleData) => {
-    // Apply markdown template if configured
-    if (configData.markdownTemplate && data.markdown) {
-      const now = new Date();
-      const formattedDate = now.toISOString().split('T')[0];
-      
-      // Extract the first paragraph as description (limited to 150 characters)
-      let description = '';
-      const firstParagraphMatch = data.markdown.match(/^(.+?)(\n\n|$)/);
-      if (firstParagraphMatch && firstParagraphMatch[1]) {
-        // Remove any markdown formatting from the description
-        description = firstParagraphMatch[1]
-          .replace(/[#*_~`]/g, '') // Remove markdown formatting characters
-          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Replace links with just their text
-          .trim();
-        
-        // Limit description length
-        if (description.length > 150) {
-          description = description.substring(0, 147) + '...';
-        }
-      }
-      
-      let templatedMarkdown = configData.markdownTemplate
-        .replace('{{title}}', data.title)
-        .replace('{{date}}', formattedDate)
-        .replace('{{source}}', data.originalUrl)
-        .replace('{{description}}', description);
-      
-      data.markdown = templatedMarkdown + data.markdown;
-    }
-    
-    setMarkdown(data.markdown);
-    setArticleData(data);
   };
   
   return (
@@ -175,7 +140,22 @@ export default function Home() {
               </CardHeader>
               <CardContent className="pt-4">
                 <ConverterForm 
-                  onConversionComplete={onConversionComplete}
+                  onConversionComplete={(data: ArticleData) => {
+                    // Apply markdown template if configured
+                    if (configData.markdownTemplate && data.markdown) {
+                      const now = new Date();
+                      const formattedDate = now.toISOString().split('T')[0];
+                      let templatedMarkdown = configData.markdownTemplate
+                        .replace('{{title}}', data.title)
+                        .replace('{{date}}', formattedDate)
+                        .replace('{{source}}', data.originalUrl);
+                      
+                      data.markdown = templatedMarkdown + data.markdown;
+                    }
+                    
+                    setMarkdown(data.markdown);
+                    setArticleData(data);
+                  }}
                   setIsLoading={setIsLoading}
                   isLoading={isLoading}
                 />

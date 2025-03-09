@@ -95,7 +95,7 @@ export function createArticleMarkdown(articleData) {
   }
   
   if (url) {
-    markdown += `> 原文链接：${url}\n\n`;
+    markdown += `> 公众号链接：${url}\n\n`;
   }
   
   // Combine metadata and content
