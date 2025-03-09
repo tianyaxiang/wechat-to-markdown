@@ -5,6 +5,7 @@ import { Button, Card, CardContent, Alert, AlertTitle, AlertDescription } from '
 import { Download, Github, Check, AlertCircle, ExternalLink, Info } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import pinyin from 'pinyin';
 
 interface ArticleData {
   markdown: string;
@@ -40,6 +41,40 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
     return <div>No article data available</div>;
   }
 
+  // Function to convert Chinese characters to Pinyin
+  const convertToPinyin = (text: string): string => {
+    try {
+      // Check if pinyin module is available
+      if (typeof pinyin === 'function') {
+        return pinyin(text, {
+          style: pinyin.STYLE_NORMAL, // Normal style without tone marks
+          heteronym: false // Don't show multiple pronunciations
+        }).flat().join('-');
+      } else {
+        // Fallback if pinyin module is not available
+        return text;
+      }
+    } catch (error) {
+      console.error('Error converting to pinyin:', error);
+      return text;
+    }
+  };
+
+  // Function to sanitize title for filenames
+  const sanitizeTitle = (title: string): string => {
+    // Check if title contains Chinese characters
+    const hasChinese = /[\u4e00-\u9fa5]/.test(title);
+    
+    if (hasChinese) {
+      // Convert Chinese to Pinyin
+      const pinyinTitle = convertToPinyin(title);
+      return pinyinTitle.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
+    } else {
+      // For non-Chinese titles, just sanitize normally
+      return title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
+    }
+  };
+
   const handleDownload = async () => {
     try {
       setIsDownloading(true);
@@ -48,7 +83,7 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       const zip = new JSZip();
       
       // Add markdown file
-      const sanitizedTitle = articleData.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
+      const sanitizedTitle = sanitizeTitle(articleData.title);
       const markdownFilename = `${sanitizedTitle}.md`;
       zip.file(markdownFilename, articleData.markdown);
       
@@ -173,7 +208,7 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
     }
     
     try {
-      const sanitizedTitle = articleData.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
+      const sanitizedTitle = sanitizeTitle(articleData.title);
       const markdownFilename = `${sanitizedTitle}.md`;
       const date = new Date().toISOString().split('T')[0];
       
