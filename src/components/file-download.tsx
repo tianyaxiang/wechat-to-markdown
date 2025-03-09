@@ -217,7 +217,7 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       const imagesDir = githubConfig.imagesDir || 'images';
       
       // Create path for markdown file and images
-      const folderPath = `${markdownDir}/${date}-${sanitizedTitle}`;
+      const folderPath = `${markdownDir}`;
       const imagesPath = `${folderPath}/${imagesDir}`;
       
       console.log('Fetching repository info...');
