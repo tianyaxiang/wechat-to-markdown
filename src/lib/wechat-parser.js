@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Parses a WeChat article HTML and extracts relevant content
@@ -50,7 +51,8 @@ export function parseWeChatArticle(html) {
       const validExtension = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)
         ? extension
         : 'jpg';
-      const filename = `image_${index + 1}.${validExtension}`;
+      const imageId = uuidv4();
+      const filename = `${imageId}`;
 
       // Update image source to point to local path
       el.attr('src', `./images/${filename}`);

@@ -46,7 +46,8 @@ export async function POST(request) {
 
       if (originalSrc) {
         const extension = originalSrc.split('?')[0].split('.').pop() || 'jpg';
-        const filename = `image_${index + 1}.${extension}`;
+        const imageId = uuidv4();
+        const filename = `${imageId}`;
 
         // Update image source to relative path for markdown
         $(element).attr('src', `./images/${filename}`);
