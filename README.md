@@ -4,7 +4,7 @@ A modern web application that converts WeChat public account articles to clean M
 
 [中文文档](README_CN.md) | English
 
-![WeChat to Markdown Converter](public/screenshot.png)
+![WeChat to Markdown Converter](public/screenshot.jpeg)
 
 ## Features
 

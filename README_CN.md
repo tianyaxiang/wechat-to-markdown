@@ -4,7 +4,7 @@
 
 [English](README.md) | 中文文档
 
-![微信公众号文章转 Markdown 工具](public/screenshot.png)
+![微信公众号文章转 Markdown 工具](public/screenshot.jpeg)
 
 ## 功能特点
 
