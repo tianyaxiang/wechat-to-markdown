@@ -161,7 +161,7 @@ export default function Home() {
               <Settings className="h-5 w-5" />
               <span className="sr-only">Settings</span>
             </button>
-            <a href="https://github.com/yourusername/wechat-to-markdown" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-9 py-2 px-3">
+            <a href="https://github.com/tianyaxiang/wechat-to-markdown" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-9 py-2 px-3">
               <Github className="h-5 w-5" />
               <span className="sr-only">GitHub</span>
             </a>
