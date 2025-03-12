@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button, Card, CardContent, Alert, AlertTitle, AlertDescription } from '@/components/ui';
 import { Download, Github, Check, AlertCircle, ExternalLink, Info } from 'lucide-react';
 import JSZip from 'jszip';
@@ -36,44 +36,33 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [showRepoHelp, setShowRepoHelp] = useState<boolean>(false);
+  const [sanitizedTitle, setSanitizedTitle] = useState<string>('');
+
+  useEffect(() => {
+    if (articleData?.title) {
+      const hasChinese = /[\u4e00-\u9fa5]/.test(articleData.title);
+      
+      if (hasChinese && typeof pinyin === 'function') {
+        try {
+          const pinyinTitle = pinyin(articleData.title, {
+            style: pinyin.STYLE_NORMAL,
+            heteronym: false
+          }).flat().join('-');
+          
+          setSanitizedTitle(pinyinTitle.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-'));
+        } catch (e) {
+          console.error('拼音转换错误:', e);
+          setSanitizedTitle(articleData.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-'));
+        }
+      } else {
+        setSanitizedTitle(articleData.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-'));
+      }
+    }
+  }, [articleData?.title]);
 
   if (!articleData) {
-    return <div>No article data available</div>;
+    return <div>没有可用的文章数据</div>;
   }
-
-  // Function to convert Chinese characters to Pinyin
-  const convertToPinyin = (text: string): string => {
-    try {
-      // Check if pinyin module is available
-      if (typeof pinyin === 'function') {
-        return pinyin(text, {
-          style: pinyin.STYLE_NORMAL, // Normal style without tone marks
-          heteronym: false // Don't show multiple pronunciations
-        }).flat().join('-');
-      } else {
-        // Fallback if pinyin module is not available
-        return text;
-      }
-    } catch (error) {
-      console.error('Error converting to pinyin:', error);
-      return text;
-    }
-  };
-
-  // Function to sanitize title for filenames
-  const sanitizeTitle = (title: string): string => {
-    // Check if title contains Chinese characters
-    const hasChinese = /[\u4e00-\u9fa5]/.test(title);
-    
-    if (hasChinese) {
-      // Convert Chinese to Pinyin
-      const pinyinTitle = convertToPinyin(title);
-      return pinyinTitle.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
-    } else {
-      // For non-Chinese titles, just sanitize normally
-      return title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
-    }
-  };
 
   const handleDownload = async () => {
     try {
@@ -82,49 +71,43 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       
       const zip = new JSZip();
       
-      // Add markdown file
-      const sanitizedTitle = sanitizeTitle(articleData.title);
-      const markdownFilename = `${sanitizedTitle}.md`;
+      const titleToUse = sanitizedTitle || articleData.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
+      const markdownFilename = `${titleToUse}.md`;
       zip.file(markdownFilename, articleData.markdown);
       
-      // Create images folder
       const imagesFolder = zip.folder('images');
       
-      // Add images
       const totalImages = articleData.images.length;
       let completedImages = 0;
       
       for (const image of articleData.images) {
         try {
-          // Use our proxy API to fetch the image
           const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(image.url)}`;
           const response = await fetch(proxyUrl);
           
           if (!response.ok) {
-            throw new Error(`Failed to fetch image: ${response.statusText}`);
+            throw new Error(`获取图片失败: ${response.statusText}`);
           }
           
           const blob = await response.blob();
           imagesFolder?.file(image.filename, blob);
           
-          // Update progress
           completedImages++;
           setDownloadProgress(Math.round((completedImages / totalImages) * 100));
         } catch (error) {
-          console.error(`Failed to download image: ${image.url}`, error);
+          console.error(`下载图片失败: ${image.url}`, error);
         }
       }
       
-      // Generate and save zip
       const content = await zip.generateAsync({ 
         type: 'blob',
         compression: 'DEFLATE',
         compressionOptions: { level: 6 }
       });
       
-      saveAs(content, `${sanitizedTitle}.zip`);
+      saveAs(content, `${titleToUse}.zip`);
     } catch (error) {
-      console.error('Download error:', error);
+      console.error('下载错误:', error);
     } finally {
       setIsDownloading(false);
     }
@@ -132,19 +115,19 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
 
   const validateGithubConfig = () => {
     if (!githubConfig) {
-      return "GitHub configuration is missing";
+      return "缺少GitHub配置";
     }
     
     if (!githubConfig.repo) {
-      return "GitHub repository is not specified";
+      return "未指定GitHub仓库";
     }
     
     if (!githubConfig.repo.includes('/')) {
-      return "Invalid repository format. Should be 'username/repository'";
+      return "仓库格式无效。应为'用户名/仓库名'";
     }
     
     if (!githubConfig.token) {
-      return "GitHub token is not specified";
+      return "未指定GitHub令牌";
     }
     
     return null;
@@ -153,40 +136,40 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
   const getHumanReadableError = (error: string, status?: number) => {
     if (error.includes('Not Found') && status === 404) {
       return {
-        message: "Repository not found",
-        details: `The repository "${githubConfig?.repo}" could not be found.`,
-        solution: `Please check that:
-1. The repository exists on GitHub
-2. The repository name is correctly formatted as 'username/repository'
-3. Your GitHub token has access to this repository
-4. If it's a private repository, make sure your token has the 'repo' scope
-5. You may need to create the repository first if it doesn't exist`
+        message: "未找到仓库",
+        details: `找不到仓库"${githubConfig?.repo}"。`,
+        solution: `请检查：
+1. GitHub上是否存在该仓库
+2. 仓库名称格式是否正确，应为'用户名/仓库名'
+3. 您的GitHub令牌是否有权访问此仓库
+4. 如果是私有仓库，请确保您的令牌具有'repo'权限
+5. 如果仓库不存在，您可能需要先创建它`
       };
     }
     
     if (error.includes('Bad credentials') || error.includes('Unauthorized')) {
       return {
-        message: "Invalid GitHub token",
-        details: `Your GitHub token was rejected.`,
-        solution: `Please check that:
-1. The token is valid and not expired
-2. The token has the 'repo' scope
-3. You can create a new token at GitHub Settings`
+        message: "GitHub令牌无效",
+        details: `您的GitHub令牌被拒绝。`,
+        solution: `请检查：
+1. 令牌是否有效且未过期
+2. 令牌是否具有'repo'权限
+3. 您可以在GitHub设置中创建新令牌`
       };
     }
     
     if (error.includes('rate limit')) {
       return {
-        message: "GitHub API rate limit exceeded",
-        details: "You've hit GitHub's API rate limit.",
-        solution: "Please try again later or use a token with higher rate limits."
+        message: "超出GitHub API速率限制",
+        details: "您已达到GitHub的API速率限制。",
+        solution: "请稍后再试或使用具有更高速率限制的令牌。"
       };
     }
     
     return {
       message: error,
       details: "",
-      solution: "Check your GitHub configuration and try again."
+      solution: "检查您的GitHub配置并重试。"
     };
   };
 
@@ -199,7 +182,6 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
     setSyncErrorSolution('');
     setShowRepoHelp(false);
     
-    // Validate GitHub configuration
     const validationError = validateGithubConfig();
     if (validationError) {
       setSyncStatus('error');
@@ -208,20 +190,17 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
     }
     
     try {
-      const sanitizedTitle = sanitizeTitle(articleData.title);
-      const markdownFilename = `${sanitizedTitle}.md`;
+      const titleToUse = sanitizedTitle || articleData.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
+      const markdownFilename = `${titleToUse}.md`;
       const date = new Date().toISOString().split('T')[0];
       
-      // Use configured directories or defaults
       const markdownDir = githubConfig.markdownDir || 'articles';
       const imagesDir = githubConfig.imagesDir || 'images';
       
-      // Create path for markdown file and images
       const folderPath = `${markdownDir}`;
       const imagesPath = `${folderPath}/${imagesDir}`;
       
-      console.log('Fetching repository info...');
-      // Get the default branch
+      console.log('获取仓库信息...');
       const repoInfoResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}`, {
         headers: {
           'Authorization': `token ${githubConfig.token}`,
@@ -231,30 +210,27 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       
       if (!repoInfoResponse.ok) {
         const errorData = await repoInfoResponse.json().catch(() => ({}));
-        const errorMessage = errorData.message || repoInfoResponse.statusText || 'Unknown error';
+        const errorMessage = errorData.message || repoInfoResponse.statusText || '未知错误';
         const { message, details, solution } = getHumanReadableError(errorMessage, repoInfoResponse.status);
         setSyncError(message);
         setSyncErrorDetails(details);
         setSyncErrorSolution(solution);
         
-        // Show repository help if it's a 404 error
         if (repoInfoResponse.status === 404) {
           setShowRepoHelp(true);
         }
         
         setSyncStatus('error');
-        return; // Stop execution instead of throwing
+        return;
       }
       
       const repoInfo = await repoInfoResponse.json();
       
-      // Use configured branch or repository default branch
       const defaultBranch = githubConfig.branch || repoInfo.default_branch;
       
-      console.log(`Using branch: ${defaultBranch}`);
-      console.log('Fetching reference...');
+      console.log(`使用分支: ${defaultBranch}`);
+      console.log('获取引用...');
       
-      // Get the reference to the default branch
       const refResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/git/refs/heads/${defaultBranch}`, {
         headers: {
           'Authorization': `token ${githubConfig.token}`,
@@ -264,22 +240,20 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       
       if (!refResponse.ok) {
         const errorData = await refResponse.json().catch(() => ({}));
-        const errorMessage = errorData.message || refResponse.statusText || 'Unknown error';
+        const errorMessage = errorData.message || refResponse.statusText || '未知错误';
         const { message, details, solution } = getHumanReadableError(errorMessage, refResponse.status);
         setSyncError(message);
         setSyncErrorDetails(details);
         setSyncErrorSolution(solution);
         setSyncStatus('error');
-        return; // Stop execution instead of throwing
+        return;
       }
       
       const refData = await refResponse.json();
       
-      // Create a new branch for this article
-      const branchName = `article-${date}-${Math.floor(Math.random() * 1000)}`;
+      const branchName = `article-${date}-${Date.now().toString().slice(-4)}`;
       
-      console.log(`Creating branch: ${branchName}...`);
-      // Create a new branch
+      console.log(`创建分支: ${branchName}...`);
       const createBranchResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/git/refs`, {
         method: 'POST',
         headers: {
@@ -295,17 +269,16 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       
       if (!createBranchResponse.ok) {
         const errorData = await createBranchResponse.json().catch(() => ({}));
-        const errorMessage = errorData.message || createBranchResponse.statusText || 'Unknown error';
+        const errorMessage = errorData.message || createBranchResponse.statusText || '未知错误';
         const { message, details, solution } = getHumanReadableError(errorMessage, createBranchResponse.status);
         setSyncError(message);
         setSyncErrorDetails(details);
         setSyncErrorSolution(solution);
         setSyncStatus('error');
-        return; // Stop execution instead of throwing
+        return;
       }
       
-      console.log(`Uploading markdown file to ${folderPath}/${markdownFilename}...`);
-      // Upload markdown file
+      console.log(`上传Markdown文件到 ${folderPath}/${markdownFilename}...`);
       const markdownResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/contents/${folderPath}/${markdownFilename}`, {
         method: 'PUT',
         headers: {
@@ -314,7 +287,7 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          message: `Add article: ${articleData.title}`,
+          message: `添加文章: ${articleData.title}`,
           content: btoa(unescape(encodeURIComponent(articleData.markdown))),
           branch: branchName
         })
@@ -322,30 +295,27 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       
       if (!markdownResponse.ok) {
         const errorData = await markdownResponse.json().catch(() => ({}));
-        const errorMessage = errorData.message || markdownResponse.statusText || 'Unknown error';
+        const errorMessage = errorData.message || markdownResponse.statusText || '未知错误';
         const { message, details, solution } = getHumanReadableError(errorMessage, markdownResponse.status);
         setSyncError(message);
         setSyncErrorDetails(details);
         setSyncErrorSolution(solution);
         setSyncStatus('error');
-        return; // Stop execution instead of throwing
+        return;
       }
       
-      console.log(`Uploading images to ${imagesPath}...`);
-      // Upload images
+      console.log(`上传图片到 ${imagesPath}...`);
       for (const image of articleData.images) {
         try {
-          // Use our proxy API to fetch the image
           const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(image.url)}`;
           const response = await fetch(proxyUrl);
           
           if (!response.ok) {
-            throw new Error(`Failed to fetch image: ${response.statusText}`);
+            throw new Error(`获取图片失败: ${response.statusText}`);
           }
           
           const blob = await response.blob();
           
-          // Convert blob to base64
           const reader = new FileReader();
           const base64Promise = new Promise<string>((resolve) => {
             reader.onloadend = () => {
@@ -356,7 +326,6 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
           reader.readAsDataURL(blob);
           const base64data = await base64Promise;
           
-          // Upload image to GitHub
           const imageResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/contents/${imagesPath}/${image.filename}`, {
             method: 'PUT',
             headers: {
@@ -365,7 +334,7 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              message: `Add image for article: ${articleData.title}`,
+              message: `为文章添加图片: ${articleData.title}`,
               content: base64data,
               branch: branchName
             })
@@ -373,25 +342,24 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
           
           if (!imageResponse.ok) {
             const errorData = await imageResponse.json().catch(() => ({}));
-            const errorMessage = errorData.message || imageResponse.statusText || 'Unknown error';
+            const errorMessage = errorData.message || imageResponse.statusText || '未知错误';
             const { message, details, solution } = getHumanReadableError(errorMessage, imageResponse.status);
             setSyncError(message);
             setSyncErrorDetails(details);
             setSyncErrorSolution(solution);
             setSyncStatus('error');
-            return; // Stop execution instead of throwing
+            return;
           }
         } catch (error) {
-          console.error(`Failed to upload image: ${image.url}`, error);
-          setSyncError("Failed to upload image");
-          setSyncErrorDetails(error instanceof Error ? error.message : "Unknown error");
+          console.error(`上传图片失败: ${image.url}`, error);
+          setSyncError("上传图片失败");
+          setSyncErrorDetails(error instanceof Error ? error.message : "未知错误");
           setSyncStatus('error');
-          return; // Stop execution instead of throwing
+          return;
         }
       }
       
-      console.log('Creating pull request...');
-      // Create a pull request
+      console.log('创建拉取请求...');
       const prResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/pulls`, {
         method: 'POST',
         headers: {
@@ -400,38 +368,37 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          title: `Add article: ${articleData.title}`,
+          title: `添加文章: ${articleData.title}`,
           head: branchName,
           base: defaultBranch,
-          body: `This PR adds a new article: ${articleData.title}\n\nSource: ${articleData.originalUrl}`
+          body: `此PR添加了新文章: ${articleData.title}\n\n来源: ${articleData.originalUrl}`
         })
       });
       
       if (!prResponse.ok) {
         const errorData = await prResponse.json().catch(() => ({}));
-        const errorMessage = errorData.message || prResponse.statusText || 'Unknown error';
+        const errorMessage = errorData.message || prResponse.statusText || '未知错误';
         const { message, details, solution } = getHumanReadableError(errorMessage, prResponse.status);
         setSyncError(message);
         setSyncErrorDetails(details);
         setSyncErrorSolution(solution);
         setSyncStatus('error');
-        return; // Stop execution instead of throwing
+        return;
       }
       
       setSyncStatus('success');
     } catch (error) {
-      console.error('GitHub sync error:', error);
+      console.error('GitHub同步错误:', error);
       setSyncStatus('error');
-      setSyncError(error instanceof Error ? error.message : 'Unknown error occurred');
+      setSyncError(error instanceof Error ? error.message : '发生未知错误');
     }
   };
 
-  // Helper function to create a new GitHub repository
   const createNewRepo = async () => {
     if (!githubConfig || !githubConfig.token) return;
     
     const repoName = githubConfig.repo.split('/')[1];
-    const isPrivate = true; // Default to private repository
+    const isPrivate = true;
     
     try {
       setSyncStatus('syncing');
@@ -449,32 +416,30 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
         body: JSON.stringify({
           name: repoName,
           private: isPrivate,
-          auto_init: true, // Initialize with README
-          description: 'Repository for WeChat articles converted to Markdown'
+          auto_init: true,
+          description: '用于存储转换为Markdown的微信文章的仓库'
         })
       });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         setSyncStatus('error');
-        setSyncError("Failed to create repository");
+        setSyncError("创建仓库失败");
         setSyncErrorDetails(errorData.message || response.statusText);
         return;
       }
       
-      // Repository created successfully
-      setSyncStatus('idle'); // Reset to idle to allow sync
+      setSyncStatus('idle');
       setSyncError('');
       setSyncErrorDetails('');
       setSyncErrorSolution('');
       setShowRepoHelp(false);
       
-      // Show success message
-      alert(`Repository "${repoName}" created successfully! You can now sync your article.`);
+      alert(`仓库"${repoName}"创建成功！您现在可以同步您的文章了。`);
     } catch (error) {
       setSyncStatus('error');
-      setSyncError("Failed to create repository");
-      setSyncErrorDetails(error instanceof Error ? error.message : "Unknown error");
+      setSyncError("创建仓库失败");
+      setSyncErrorDetails(error instanceof Error ? error.message : "未知错误");
     }
   };
 
@@ -484,9 +449,9 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
         <Card className="p-4 border border-slate-200 dark:border-slate-800">
           <CardContent className="p-0 space-y-4">
             <div>
-              <h3 className="font-medium text-lg">Download as ZIP</h3>
+              <h3 className="font-medium text-lg">下载为ZIP</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Download the Markdown file and all images as a ZIP archive
+                将Markdown文件和所有图片下载为ZIP压缩包
               </p>
             </div>
             
@@ -507,12 +472,12 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
               {isDownloading ? (
                 <>
                   <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
-                  Downloading... {downloadProgress}%
+                  下载中... {downloadProgress}%
                 </>
               ) : (
                 <>
                   <Download className="mr-2 h-4 w-4" />
-                  Download ZIP
+                  下载ZIP
                 </>
               )}
             </Button>
@@ -523,13 +488,13 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
           <Card className="p-4 border border-slate-200 dark:border-slate-800">
             <CardContent className="p-0 space-y-4">
               <div>
-                <h3 className="font-medium text-lg">Sync to GitHub</h3>
+                <h3 className="font-medium text-lg">同步到GitHub</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Push the article to your GitHub repository
+                  将文章推送到您的GitHub仓库
                 </p>
                 {githubConfig.branch && (
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Branch: {githubConfig.branch} | Directory: {githubConfig.markdownDir || 'articles'}/{githubConfig.imagesDir || 'images'}
+                    分支: {githubConfig.branch} | 目录: {githubConfig.markdownDir || 'articles'}/{githubConfig.imagesDir || 'images'}
                   </p>
                 )}
               </div>
@@ -542,25 +507,25 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
                 {syncStatus === 'idle' && (
                   <>
                     <Github className="mr-2 h-4 w-4" />
-                    Sync to GitHub
+                    同步到GitHub
                   </>
                 )}
                 {syncStatus === 'syncing' && (
                   <>
                     <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
-                    Syncing...
+                    同步中...
                   </>
                 )}
                 {syncStatus === 'success' && (
                   <>
                     <Check className="mr-2 h-4 w-4 text-green-500" />
-                    Synced Successfully
+                    同步成功
                   </>
                 )}
                 {syncStatus === 'error' && (
                   <>
                     <AlertCircle className="mr-2 h-4 w-4 text-red-500" />
-                    Sync Failed
+                    同步失败
                   </>
                 )}
               </Button>
@@ -585,14 +550,14 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
                     <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-800/30">
                       <p className="mb-2 font-medium flex items-center">
                         <Info className="h-4 w-4 mr-1" />
-                        Would you like to create this repository?
+                        您想创建这个仓库吗？
                       </p>
                       <Button 
                         onClick={createNewRepo} 
                         size="sm" 
                         className="w-full mt-1"
                       >
-                        Create Repository
+                        创建仓库
                       </Button>
                     </div>
                   )}
@@ -604,7 +569,7 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
                       rel="noreferrer"
                       className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center"
                     >
-                      Manage GitHub Tokens
+                      管理GitHub令牌
                       <ExternalLink className="ml-1 h-3 w-3" />
                     </a>
                   </div>
@@ -616,10 +581,10 @@ export default function FileDownload({ articleData, githubConfig }: FileDownload
       </div>
       
       <div className="text-sm text-slate-500 dark:text-slate-400">
-        <p>The downloaded ZIP contains:</p>
+        <p>下载的ZIP包含：</p>
         <ul className="list-disc list-inside mt-2 space-y-1">
-          <li>Markdown file with the article content</li>
-          <li>Images folder with all article images</li>
+          <li>包含文章内容的Markdown文件</li>
+          <li>包含所有文章图片的images文件夹</li>
         </ul>
       </div>
     </div>

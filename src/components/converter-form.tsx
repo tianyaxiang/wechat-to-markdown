@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Input, Button, Label, Progress, Alert, AlertDescription, useToast } from '@/components/ui';
 import { Loader2, Link as LinkIcon, AlertCircle, Globe, X } from 'lucide-react';
 import axios from 'axios';
@@ -24,6 +24,7 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
   const [progress, setProgress] = useState<number>(0);
   const [error, setError] = useState<string>('');
   const { toast } = useToast();
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const isValidUrl = (string: string): boolean => {
     try {
@@ -39,20 +40,20 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
     setError('');
     
     if (!url.trim()) {
-      setError('Please enter a WeChat article URL');
+      setError('请输入微信文章URL');
       toast({
-        title: "Error",
-        description: "Please enter a valid WeChat article URL",
+        title: "错误",
+        description: "请输入有效的微信文章URL",
         variant: "destructive",
       });
       return;
     }
     
     if (!isValidUrl(url)) {
-      setError('Please enter a valid WeChat article URL (mp.weixin.qq.com)');
+      setError('请输入有效的微信文章URL (mp.weixin.qq.com)');
       toast({
-        title: "Error",
-        description: "The URL must be from WeChat (mp.weixin.qq.com)",
+        title: "错误",
+        description: "URL必须来自微信 (mp.weixin.qq.com)",
         variant: "destructive",
       });
       return;
@@ -61,15 +62,16 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
     try {
       setIsLoading(true);
       
-      // Simulate progress
-      const progressInterval = setInterval(() => {
+      setProgress(10);
+      
+      progressIntervalRef.current = setInterval(() => {
         setProgress(prev => {
-          const newProgress = prev + Math.floor(Math.random() * 10);
+          const increment = 2 + (Date.now() % 2);
+          const newProgress = prev + increment;
           return newProgress > 90 ? 90 : newProgress;
         });
       }, 500);
       
-      // Call the API to convert the WeChat article
       const response = await fetch('/api/convert', {
         method: 'POST',
         headers: {
@@ -78,32 +80,35 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
         body: JSON.stringify({ url }),
       });
       
-      clearInterval(progressInterval);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      
       setProgress(100);
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to convert article');
+        throw new Error(errorData.message || '文章转换失败');
       }
       
       const data = await response.json();
       onConversionComplete(data);
       
       toast({
-        title: "Success",
-        description: "Article converted successfully!",
+        title: "成功",
+        description: "文章转换成功！",
       });
     } catch (error) {
       console.error('Conversion error:', error);
-      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      setError(error instanceof Error ? error.message : "发生未知错误");
       toast({
-        title: "Conversion Failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
+        title: "转换失败",
+        description: error instanceof Error ? error.message : "发生未知错误",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
-      // Reset progress after a delay
       setTimeout(() => setProgress(0), 1000);
     }
   };
@@ -124,18 +129,23 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
       id: ''
     });
     toast({
-      title: "Cleared",
-      description: "All content has been cleared.",
+      title: "已清除",
+      description: "所有内容已被清除。",
     });
   };
+
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, []);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       <div className="space-y-3">
-        <Label htmlFor="article-url" className="flex items-center gap-2">
-          <Globe className="h-5 w-5 text-primary" />
-          WeChat Article URL
-        </Label>
+        
         <div className="relative">
           <Input
             id="article-url"
@@ -158,12 +168,12 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
               disabled={isLoading}
             >
               <X className="h-5 w-5" />
-              <span className="sr-only">Clear URL</span>
+              <span className="sr-only">清除URL</span>
             </Button>
           )}
         </div>
         <p className="text-sm text-muted-foreground mt-1.5 pl-1">
-          Enter the URL of a WeChat article (e.g., https://mp.weixin.qq.com/s/...)
+          输入微信文章的URL（例如：https://mp.weixin.qq.com/s/...）
         </p>
       </div>
 
@@ -179,7 +189,7 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
           <div className="flex justify-between text-base text-muted-foreground">
             <span className="flex items-center">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Converting article...
+              正在转换文章...
             </span>
             <span className="font-medium">{progress}%</span>
           </div>
@@ -197,22 +207,11 @@ export default function ConverterForm({ onConversionComplete, isLoading, setIsLo
           {isLoading ? (
             <>
               <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-              Converting...
+              正在转换...
             </>
           ) : (
-            'Convert to Markdown'
+            '转换为Markdown'
           )}
-        </Button>
-
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={handleClearAll}
-          disabled={isLoading}
-          size="lg"
-        >
-          <X className="mr-2 h-4 w-4" />
-          Clear All
         </Button>
       </div>
 

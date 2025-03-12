@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, Card, CardContent, CardDescription, CardHeader, CardTitle, Toaster } from "@/components/ui";
 import ConverterForm from '@/components/converter-form';
 import MarkdownPreview from '@/components/markdown-preview';
@@ -43,22 +43,21 @@ export default function Home() {
   const [articleData, setArticleData] = useState<ArticleData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isConfigOpen, setIsConfigOpen] = useState<boolean>(false);
-  const [configData, setConfigData] = useState<ConfigData>(() => {
-    // Initialize from localStorage if available
-    if (typeof window !== 'undefined') {
-      const savedConfig = localStorage.getItem('wechat-to-markdown-config');
-      if (savedConfig) {
-        try {
-          // Merge with default config to ensure all fields exist
-          return { ...DEFAULT_CONFIG, ...JSON.parse(savedConfig) };
-        } catch (e) {
-          console.error('Failed to parse saved config:', e);
-          return DEFAULT_CONFIG;
-        }
+  const [configData, setConfigData] = useState<ConfigData>(DEFAULT_CONFIG);
+  
+  // 使用useEffect来处理localStorage，避免hydration错误
+  useEffect(() => {
+    // 在客户端加载时从localStorage初始化
+    const savedConfig = localStorage.getItem('wechat-to-markdown-config');
+    if (savedConfig) {
+      try {
+        // 合并默认配置以确保所有字段存在
+        setConfigData({ ...DEFAULT_CONFIG, ...JSON.parse(savedConfig) });
+      } catch (e) {
+        console.error('解析保存的配置失败:', e);
       }
     }
-    return DEFAULT_CONFIG;
-  });
+  }, []);
   
   const saveConfig = (newConfig: ConfigData) => {
     // Ensure all fields have values (not undefined)
@@ -144,13 +143,13 @@ export default function Home() {
               <path d="M5.51 18.5a4 4 0 0 0 3.47-6"></path>
               <path d="M20.5 18.5a4 4 0 0 0-7.5-2"></path>
             </svg>
-            <span className="font-bold">WeChat to Markdown</span>
+            <span className="font-bold">微信转Markdown</span>
           </div>
           
           <nav className="flex items-center space-x-6 text-sm font-medium mx-6">
-            <a href="#" className="transition-colors hover:text-foreground/80 text-foreground/60">Docs</a>
-            <a href="#" className="transition-colors hover:text-foreground/80 text-foreground">Convert</a>
-            <a href="#" className="transition-colors hover:text-foreground/80 text-foreground/60">About</a>
+            <a href="#" className="transition-colors hover:text-foreground/80 text-foreground/60">文档</a>
+            <a href="#" className="transition-colors hover:text-foreground/80 text-foreground">转换</a>
+            <a href="#" className="transition-colors hover:text-foreground/80 text-foreground/60">关于</a>
           </nav>
           
           <div className="flex flex-1 items-center justify-end space-x-4">
@@ -159,7 +158,7 @@ export default function Home() {
               className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-9 py-2 px-3"
             >
               <Settings className="h-5 w-5" />
-              <span className="sr-only">Settings</span>
+              <span className="sr-only">设置</span>
             </button>
             <a href="https://github.com/tianyaxiang/wechat-to-markdown" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-9 py-2 px-3">
               <Github className="h-5 w-5" />
@@ -173,13 +172,13 @@ export default function Home() {
         <Tabs defaultValue="convert" className="w-full animate-in fade-in-50 slide-in-from-bottom-4 duration-700 delay-200">
           <TabsList className="grid w-full grid-cols-3 mb-10">
             <TabsTrigger value="convert">
-              Convert
+              转换
             </TabsTrigger>
             <TabsTrigger value="preview" disabled={!markdown}>
-              Preview
+              预览
             </TabsTrigger>
             <TabsTrigger value="download" disabled={!articleData}>
-              Download
+              下载
             </TabsTrigger>
           </TabsList>
           
@@ -187,9 +186,9 @@ export default function Home() {
             <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-sm dark:bg-slate-900/95 overflow-hidden">
               <div className="absolute h-1.5 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 top-0 left-0 right-0"></div>
               <CardHeader className="pb-4">
-                <CardTitle className="text-2xl text-slate-800 dark:text-slate-200">Convert WeChat Article</CardTitle>
+                <CardTitle className="text-2xl text-slate-800 dark:text-slate-200">转换微信文章</CardTitle>
                 <CardDescription className="text-slate-600 dark:text-slate-400">
-                  Enter the URL of a WeChat article to convert it to Markdown format
+                  输入微信文章的URL，将其转换为Markdown格式
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-4">
@@ -206,9 +205,9 @@ export default function Home() {
             <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-sm dark:bg-slate-900/95 overflow-hidden">
               <div className="absolute h-1.5 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 top-0 left-0 right-0"></div>
               <CardHeader className="pb-4">
-                <CardTitle className="text-2xl text-slate-800 dark:text-slate-200">Markdown Preview</CardTitle>
+                <CardTitle className="text-2xl text-slate-800 dark:text-slate-200">Markdown预览</CardTitle>
                 <CardDescription className="text-slate-600 dark:text-slate-400">
-                  Preview the converted Markdown content
+                  预览转换后的Markdown内容
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-4">
@@ -221,9 +220,9 @@ export default function Home() {
             <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-sm dark:bg-slate-900/95 overflow-hidden">
               <div className="absolute h-1.5 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 top-0 left-0 right-0"></div>
               <CardHeader className="pb-4">
-                <CardTitle className="text-2xl text-slate-800 dark:text-slate-200">Download Files</CardTitle>
+                <CardTitle className="text-2xl text-slate-800 dark:text-slate-200">下载文件</CardTitle>
                 <CardDescription className="text-slate-600 dark:text-slate-400">
-                  Download the Markdown file and images
+                  下载Markdown文件和图片
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-4">
@@ -243,7 +242,7 @@ export default function Home() {
         </Tabs>
         
         <footer className="mt-20 text-center text-base text-slate-500 dark:text-slate-400 animate-in fade-in-50 duration-700 delay-500">
-          <p>© {new Date().getFullYear()} WeChat to Markdown Converter. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} 微信转Markdown转换器。保留所有权利。</p>
         </footer>
         
         <Toaster />
