@@ -143,7 +143,7 @@ export default function Home() {
               <path d="M5.51 18.5a4 4 0 0 0 3.47-6"></path>
               <path d="M20.5 18.5a4 4 0 0 0-7.5-2"></path>
             </svg>
-            <span className="font-bold">微信转Markdown</span>
+            <span className="font-bold">WeChat to Markdown</span>
           </div>
           
           <nav className="flex items-center space-x-6 text-sm font-medium mx-6">
@@ -186,9 +186,9 @@ export default function Home() {
             <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-sm dark:bg-slate-900/95 overflow-hidden">
               <div className="absolute h-1.5 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 top-0 left-0 right-0"></div>
               <CardHeader className="pb-4">
-                <CardTitle className="text-2xl text-slate-800 dark:text-slate-200">转换微信文章</CardTitle>
+                <CardTitle className="text-2xl text-slate-800 dark:text-slate-200">转换微信公众号文章</CardTitle>
                 <CardDescription className="text-slate-600 dark:text-slate-400">
-                  输入微信文章的URL，将其转换为Markdown格式
+                  输入微信公众号文章的URL，将其转换为Markdown格式
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-4">
