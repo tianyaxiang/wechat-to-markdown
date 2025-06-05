@@ -235,12 +235,27 @@ export default function FileDownload({ articleData, allArticles, githubConfig }:
     const date = new Date().toISOString().split('T')[0];
     let content = githubConfig?.markdownTemplate || '';
     
+    // 从正文中提取描述
+    let description = article.markdown
+      // 移除所有的 Markdown 标记
+      .replace(/[#*`~>]/g, '')
+      // 移除链接的URL部分
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // 移除多余的空行
+      .split('\n')
+      .filter(line => line.trim())
+      .join(' ')
+      // 取前150个字符
+      .slice(0, 150)
+      // 如果被截断了，加上省略号
+      .trim() + (article.markdown.length > 150 ? '...' : '');
+    
     // 替换模板变量
     content = content
       .replace(/{{title}}/g, article.title)
       .replace(/{{date}}/g, date)
       .replace(/{{source}}/g, article.originalUrl)
-      .replace(/{{description}}/g, '微信公众号文章转载');
+      .replace(/{{description}}/g, description);
     
     return content + article.markdown;
   };

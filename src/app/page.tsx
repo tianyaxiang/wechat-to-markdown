@@ -235,7 +235,8 @@ export default function Home() {
                     token: configData.githubToken,
                     branch: configData.githubBranch,
                     markdownDir: configData.markdownDir,
-                    imagesDir: configData.imagesDir
+                    imagesDir: configData.imagesDir,
+                    markdownTemplate: configData.markdownTemplate
                   } : undefined}
                 />
               </div>
