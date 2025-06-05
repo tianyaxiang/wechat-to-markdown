@@ -21,6 +21,7 @@ interface GithubConfig {
   branch?: string;
   markdownDir?: string;
   imagesDir?: string;
+  markdownTemplate?: string;
 }
 
 interface FileDownloadProps {
@@ -230,6 +231,20 @@ export default function FileDownload({ articleData, allArticles, githubConfig }:
     };
   };
 
+  const generateMarkdownWithFrontmatter = (article: ArticleData) => {
+    const date = new Date().toISOString().split('T')[0];
+    let content = githubConfig?.markdownTemplate || '';
+    
+    // 替换模板变量
+    content = content
+      .replace(/{{title}}/g, article.title)
+      .replace(/{{date}}/g, date)
+      .replace(/{{source}}/g, article.originalUrl)
+      .replace(/{{description}}/g, '微信公众号文章转载');
+    
+    return content + article.markdown;
+  };
+
   const handleGithubSync = async () => {
     if (!githubConfig) return;
     
@@ -286,6 +301,9 @@ export default function FileDownload({ articleData, allArticles, githubConfig }:
       const folderPath = `${markdownDir}`;
       const imagesPath = `${folderPath}/${imagesDir}`;
       
+      // Generate markdown content with frontmatter
+      const markdownContent = generateMarkdownWithFrontmatter(articleData);
+      
       console.log(`上传Markdown文件到 ${folderPath}/${markdownFilename}...`);
       const markdownResponse = await fetch(`https://api.github.com/repos/${githubConfig.repo}/contents/${folderPath}/${markdownFilename}`, {
         method: 'PUT',
@@ -296,7 +314,7 @@ export default function FileDownload({ articleData, allArticles, githubConfig }:
         },
         body: JSON.stringify({
           message: `添加文章: ${articleData.title}`,
-          content: btoa(unescape(encodeURIComponent(articleData.markdown))),
+          content: btoa(unescape(encodeURIComponent(markdownContent))),
           branch: targetBranch
         })
       });
@@ -430,6 +448,9 @@ export default function FileDownload({ articleData, allArticles, githubConfig }:
         const articlePath = `${markdownDir}/${titleToUse}`;
         const imagesPath = `${articlePath}/${imagesDir}`;
         
+        // Generate markdown content with frontmatter
+        const markdownContent = generateMarkdownWithFrontmatter(article);
+        
         // Upload markdown file
         await fetch(`https://api.github.com/repos/${githubConfig.repo}/contents/${articlePath}/${titleToUse}.md`, {
           method: 'PUT',
@@ -440,7 +461,7 @@ export default function FileDownload({ articleData, allArticles, githubConfig }:
           },
           body: JSON.stringify({
             message: `添加文章: ${article.title}`,
-            content: btoa(unescape(encodeURIComponent(article.markdown))),
+            content: btoa(unescape(encodeURIComponent(markdownContent))),
             branch: targetBranch
           })
         });
