@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger, Card, CardContent, CardDescription, CardHeader, CardTitle, Toaster } from "@/components/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger, Card, CardContent, CardDescription, CardHeader, CardTitle, Toaster, Button } from "@/components/ui";
 import ConverterForm from '@/components/converter-form';
 import MarkdownPreview from '@/components/markdown-preview';
 import FileDownload from '@/components/file-download';
@@ -39,8 +39,8 @@ const DEFAULT_CONFIG: ConfigData = {
 };
 
 export default function Home() {
-  const [markdown, setMarkdown] = useState<string>('');
-  const [articleData, setArticleData] = useState<ArticleData | null>(null);
+  const [markdowns, setMarkdowns] = useState<ArticleData[]>([]);
+  const [currentArticleIndex, setCurrentArticleIndex] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isConfigOpen, setIsConfigOpen] = useState<boolean>(false);
   const [configData, setConfigData] = useState<ConfigData>(DEFAULT_CONFIG);
@@ -76,59 +76,30 @@ export default function Home() {
   };
   
   const onConversionComplete = (data: ArticleData) => {
-    // Apply markdown template if configured
-    if (configData.markdownTemplate && data.markdown) {
-      const now = new Date();
-      const formattedDate = now.toISOString().split('T')[0];
-      
-      // Extract description - first try to get the first paragraph, then fallback to first 30 chars
-      let description = '';
-      
-      // Remove the title heading if it exists
-      const contentWithoutTitle = data.markdown.replace(/^# .+?\n+/, '');
-      
-      // Try to extract the first paragraph
-      const firstParagraphMatch = contentWithoutTitle.match(/^(.+?)(\n\n|$)/);
-      if (firstParagraphMatch && firstParagraphMatch[1]) {
-        // Remove any markdown formatting from the description
-        description = firstParagraphMatch[1]
-          .replace(/[#*_~`]/g, '') // Remove markdown formatting characters
-          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Replace links with just their text
-          .trim();
-      }
-      
-      // If description is still empty or too short, use the first 30 chars of content
-      if (!description || description.length < 5) {
-        const plainText = contentWithoutTitle
-          .replace(/[#*_~`]/g, '')
-          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-          .replace(/\n+/g, ' ')
-          .trim();
-        
-        description = plainText.substring(0, 30) + (plainText.length > 30 ? '...' : '');
-      } else if (description.length > 150) {
-        // Limit description length if it's too long
-        description = description.substring(0, 147) + '...';
-      }
-      
-      // Ensure description is not empty
-      if (!description) {
-        description = data.title;
-      }
-      
-      let templatedMarkdown = configData.markdownTemplate
-        .replace(/{{title}}/g, data.title)
-        .replace(/{{date}}/g, formattedDate)
-        .replace(/{{source}}/g, data.originalUrl)
-        .replace(/{{description}}/g, description);
-      
-      data.markdown = templatedMarkdown + contentWithoutTitle;
-    }
-    
-    setMarkdown(data.markdown);
-    setArticleData(data);
+    setMarkdowns(prev => [...prev, data]);
+    setCurrentArticleIndex(prev => Math.min(prev + 1, markdowns.length));
   };
   
+  const handleArticleSelect = (index: number) => {
+    setCurrentArticleIndex(index);
+  };
+
+  const clearAllArticles = () => {
+    setMarkdowns([]);
+    setCurrentArticleIndex(0);
+  };
+
+  const currentArticle = markdowns[currentArticleIndex];
+  
+  // 确保currentArticleIndex不会超出数组范围
+  useEffect(() => {
+    if (markdowns.length === 0) {
+      setCurrentArticleIndex(0);
+    } else if (currentArticleIndex >= markdowns.length) {
+      setCurrentArticleIndex(markdowns.length - 1);
+    }
+  }, [markdowns.length, currentArticleIndex]);
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-100 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       {/* Navbar */}
@@ -174,10 +145,10 @@ export default function Home() {
             <TabsTrigger value="convert">
               转换
             </TabsTrigger>
-            <TabsTrigger value="preview" disabled={!markdown}>
+            <TabsTrigger value="preview" disabled={!markdowns.length}>
               预览
             </TabsTrigger>
-            <TabsTrigger value="download" disabled={!articleData}>
+            <TabsTrigger value="download" disabled={!markdowns.length}>
               下载
             </TabsTrigger>
           </TabsList>
@@ -188,7 +159,7 @@ export default function Home() {
               <CardHeader className="pb-4">
                 <CardTitle className="text-2xl text-slate-800 dark:text-slate-200">转换微信公众号文章</CardTitle>
                 <CardDescription className="text-slate-600 dark:text-slate-400">
-                  输入微信公众号文章的URL，将其转换为Markdown格式
+                  输入一个或多个微信公众号文章的URL，将其转换为Markdown格式
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-4">
@@ -202,32 +173,63 @@ export default function Home() {
           </TabsContent>
           
           <TabsContent value="preview" className="mt-0">
-            <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-sm dark:bg-slate-900/95 overflow-hidden">
-              <div className="absolute h-1.5 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 top-0 left-0 right-0"></div>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-2xl text-slate-800 dark:text-slate-200">Markdown预览</CardTitle>
-                <CardDescription className="text-slate-600 dark:text-slate-400">
-                  预览转换后的Markdown内容
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <MarkdownPreview markdown={markdown} />
-              </CardContent>
-            </Card>
+            {markdowns.length > 0 && currentArticle && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-2 flex-wrap flex-1">
+                    {markdowns.map((article, index) => (
+                      <Button
+                        key={index}
+                        variant={currentArticleIndex === index ? "default" : "outline"}
+                        onClick={() => handleArticleSelect(index)}
+                        className="text-sm"
+                      >
+                        {article.title || `文章 ${index + 1}`}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearAllArticles}
+                    className="ml-4"
+                  >
+                    清除全部
+                  </Button>
+                </div>
+                <MarkdownPreview markdown={currentArticle.markdown} />
+              </div>
+            )}
           </TabsContent>
           
           <TabsContent value="download" className="mt-0">
-            <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-sm dark:bg-slate-900/95 overflow-hidden">
-              <div className="absolute h-1.5 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 top-0 left-0 right-0"></div>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-2xl text-slate-800 dark:text-slate-200">下载文件</CardTitle>
-                <CardDescription className="text-slate-600 dark:text-slate-400">
-                  下载Markdown文件和图片
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
+            {markdowns.length > 0 && currentArticle && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-2 flex-wrap flex-1">
+                    {markdowns.map((article, index) => (
+                      <Button
+                        key={index}
+                        variant={currentArticleIndex === index ? "default" : "outline"}
+                        onClick={() => handleArticleSelect(index)}
+                        className="text-sm"
+                      >
+                        {article.title || `文章 ${index + 1}`}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearAllArticles}
+                    className="ml-4"
+                  >
+                    清除全部
+                  </Button>
+                </div>
                 <FileDownload 
-                  articleData={articleData} 
+                  articleData={currentArticle}
+                  allArticles={markdowns}
                   githubConfig={configData.githubRepo && configData.githubToken ? {
                     repo: configData.githubRepo,
                     token: configData.githubToken,
@@ -236,8 +238,8 @@ export default function Home() {
                     imagesDir: configData.imagesDir
                   } : undefined}
                 />
-              </CardContent>
-            </Card>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
         
