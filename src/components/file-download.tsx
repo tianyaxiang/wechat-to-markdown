@@ -256,8 +256,24 @@ export default function FileDownload({ articleData, allArticles, githubConfig }:
       .replace(/{{date}}/g, date)
       .replace(/{{source}}/g, article.originalUrl)
       .replace(/{{description}}/g, description);
+
+    // 移除正文中的标题（可能是 # 或者 ## 格式的标题）
+    let markdown = article.markdown
+      .split('\n')
+      .filter((line, index, lines) => {
+        // 跳过开头的标题行（# 标题）和其后的空行
+        if (index === 0 && line.trim().startsWith('# ')) {
+          return false;
+        }
+        if (index === 1 && line.trim() === '' && lines[0].trim().startsWith('# ')) {
+          return false;
+        }
+        return true;
+      })
+      .join('\n')
+      .trim();
     
-    return content + article.markdown;
+    return content + '\n' + markdown;
   };
 
   const handleGithubSync = async () => {
